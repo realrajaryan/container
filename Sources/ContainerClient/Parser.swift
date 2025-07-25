@@ -337,8 +337,9 @@ public struct Parser {
                             throw ContainerizationError(.invalidArgument, message: "Invalid volume name '\(val)': must match \(VolumeStorage.volumeNamePattern)")
                         }
 
-                        // Use special marker to indicate this needs volume resolution during semantic validation
-                        fs.source = "named-volume:\(val)"
+                        // Use virtioblk type for named volumes
+                        fs.type = Filesystem.FSType.virtioblk
+                        fs.source = val
                     }
                 case "tmpfs":
                     throw ContainerizationError(.invalidArgument, message: "cannot specify source for tmpfs mount")
@@ -397,12 +398,13 @@ public struct Parser {
                     throw ContainerizationError(.invalidArgument, message: "Invalid volume name '\(src)': must match \(VolumeStorage.volumeNamePattern)")
                 }
 
-                // Use special marker to indicate this needs volume resolution during semantic validation
-                sourcePath = "named-volume:\(src)"
+                // Use virtioblk type for named volumes
+                sourcePath = src
             }
 
-            var fs = Filesystem.virtiofs(
-                source: sourcePath.hasPrefix("named-volume:") ? sourcePath : URL(fileURLWithPath: sourcePath).absolutePath(),
+            var fs = Filesystem(
+                type: src.hasPrefix("/") ? .virtiofs : .virtioblk,
+                source: sourcePath,
                 destination: dst,
                 options: []
             )
@@ -420,11 +422,7 @@ public struct Parser {
     }
 
     static func validateMount(_ mount: Filesystem) throws {
-        if !mount.isTmpfs {
-            if mount.source.hasPrefix("named-volume:") {
-                return
-            }
-
+        if !mount.isTmpfs && !mount.isVirtioblk {
             if !mount.source.isAbsolutePath() {
                 throw ContainerizationError(
                     .invalidArgument, message: "\(mount.source) is not an absolute path on the host")

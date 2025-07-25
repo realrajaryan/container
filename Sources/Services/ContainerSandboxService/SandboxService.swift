@@ -875,6 +875,13 @@ extension Filesystem {
                 destination: self.destination,
                 options: self.options
             )
+        case .virtioblk:
+            return .block(
+                format: "ext4",
+                source: self.source,
+                destination: self.destination,
+                options: self.options
+            )
         case .block(let format, _, _):
             return .block(
                 format: format,

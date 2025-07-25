@@ -57,6 +57,7 @@ public struct Filesystem: Sendable, Codable {
 
         case block(format: String, cache: CacheMode, sync: SyncMode)
         case virtiofs
+        case virtioblk
         case tmpfs
     }
 
@@ -115,10 +116,28 @@ public struct Filesystem: Sendable, Codable {
         )
     }
 
+    /// A virtioblk backed filesystem providing a named volume block device.
+    public static func virtioblk(volumeName: String, destination: String, options: MountOptions) -> Filesystem {
+        .init(
+            type: .virtioblk,
+            source: volumeName,
+            destination: destination,
+            options: options
+        )
+    }
+
     /// Returns true if the Filesystem is backed by a block device.
     public var isBlock: Bool {
         switch type {
         case .block(_, _, _): true
+        default: false
+        }
+    }
+
+    /// Returns true if the Filesystem is backed by a virtioblk volume.
+    public var isVirtioblk: Bool {
+        switch type {
+        case .virtioblk: true
         default: false
         }
     }

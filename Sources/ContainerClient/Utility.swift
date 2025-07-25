@@ -149,13 +149,14 @@ public struct Utility {
         mounts.append(contentsOf: tmpfs)
         mounts.append(contentsOf: volumes)
 
-        // Semantic validation: resolve named volume markers to actual paths
+        // Semantic validation: resolve virtioblk volumes to actual block device paths
         for i in 0..<mounts.count {
-            if mounts[i].source.hasPrefix("named-volume:") {
-                let volumeName = String(mounts[i].source.dropFirst("named-volume:".count))
+            if mounts[i].isVirtioblk {
+                let volumeName = mounts[i].source
                 do {
-                    let response = try await ClientVolume.inspect(volumeName)
-                    mounts[i].source = response.volume.mountpoint
+                    _ = try await ClientVolume.inspect(volumeName)
+                    // For virtioblk, we need the block device path, not the mountpoint
+                    mounts[i].source = VolumeStorage.blockPath(for: volumeName)
                 } catch {
                     throw ContainerizationError(.invalidArgument, message: "volume '\(volumeName)' not found")
                 }
