@@ -43,7 +43,7 @@ class TestCLIAnonymousVolumes: CLITest {
         if let (output, _, status) = try? run(arguments: ["volume", "list", "--quiet"]), status == 0 {
             let volumes = output.components(separatedBy: .newlines)
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { $0.starts(with: "anon-") || $0.lowercased().starts(with: "test") }
+                .filter { isValidUUID($0) || $0.lowercased().starts(with: "test") }
 
             for volume in volumes {
                 doVolumeDeleteIfExists(name: volume)
@@ -62,7 +62,7 @@ class TestCLIAnonymousVolumes: CLITest {
         }
         return output.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { $0.starts(with: "anon-") }
+            .filter { isValidUUID($0) }
     }
 
     func volumeExists(name: String) throws -> Bool {
@@ -74,7 +74,7 @@ class TestCLIAnonymousVolumes: CLITest {
     }
 
     func isValidUUID(_ name: String) -> Bool {
-        let pattern = #"^anon-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"#
+        let pattern = #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"#
         guard let regex = try? Regex(pattern) else { return false }
         return (try? regex.firstMatch(in: name)) != nil
     }
@@ -285,14 +285,11 @@ class TestCLIAnonymousVolumes: CLITest {
 
         let volumeName = volumeNames[0]
 
-        // Verify UUID format: anon-{lowercase uuid}
+        // Verify UUID format: {lowercase uuid}
         #expect(isValidUUID(volumeName), "volume name should match UUID format: \(volumeName)")
 
-        // Verify name starts with anon-
-        #expect(volumeName.starts(with: "anon-"), "volume name should start with 'anon-'")
-
-        // Verify total length is 41 (anon- = 5, UUID = 36)
-        #expect(volumeName.count == 41, "volume name should be 41 characters long")
+        // Verify total length is 36 characters (UUID without prefix)
+        #expect(volumeName.count == 36, "volume name should be 36 characters long")
     }
 
     @Test func testAnonymousVolumeMetadata() throws {

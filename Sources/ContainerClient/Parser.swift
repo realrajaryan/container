@@ -25,11 +25,13 @@ public struct ParsedVolume {
     public let name: String
     public let destination: String
     public let options: [String]
+    public let isAnonymous: Bool
 
-    public init(name: String, destination: String, options: [String] = []) {
+    public init(name: String, destination: String, options: [String] = [], isAnonymous: Bool = false) {
         self.name = name
         self.destination = destination
         self.options = options
+        self.isAnonymous = isAnonymous
     }
 }
 
@@ -434,7 +436,8 @@ public struct Parser {
         }
 
         // If it's a volume type but no source was provided, create an anonymous volume
-        if volumeName.isEmpty {
+        let isAnonymous = volumeName.isEmpty
+        if isAnonymous {
             volumeName = VolumeStorage.generateAnonymousVolumeName()
         }
 
@@ -442,7 +445,8 @@ public struct Parser {
             ParsedVolume(
                 name: volumeName,
                 destination: fs.destination,
-                options: fs.options
+                options: fs.options,
+                isAnonymous: isAnonymous
             ))
     }
 
@@ -464,7 +468,7 @@ public struct Parser {
         switch parts.count {
         case 1:
             // Anonymous volume: -v /path
-            // Generate a ULID-based name for the anonymous volume
+            // Generate a random name for the anonymous volume
             let anonymousName = VolumeStorage.generateAnonymousVolumeName()
             let destination = String(parts[0])
             let options: [String] = []
@@ -473,7 +477,8 @@ public struct Parser {
                 ParsedVolume(
                     name: anonymousName,
                     destination: destination,
-                    options: options
+                    options: options,
+                    isAnonymous: true
                 ))
         case 2, 3:
             let src = String(parts[0])

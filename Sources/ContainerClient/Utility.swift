@@ -160,53 +160,43 @@ public struct Utility {
             case .filesystem(let fs):
                 resolvedMounts.append(fs)
             case .volume(let parsed):
-                do {
-                    // Try to inspect the volume first
-                    let volume = try await ClientVolume.inspect(parsed.name)
-                    let volumeMount = Filesystem.volume(
-                        name: parsed.name,
-                        format: volume.format,
-                        source: volume.source,
-                        destination: parsed.destination,
-                        options: parsed.options
-                    )
-                    resolvedMounts.append(volumeMount)
-                } catch {
-                    // Create anonymous volume if the error is specifically "volume not found"
-                    let isVolumeNotFound: Bool
-                    if let volumeError = error as? VolumeError, case .volumeNotFound = volumeError {
-                        isVolumeNotFound = true
-                    } else if let containerError = error as? ContainerizationError,
-                        containerError.message.contains("not found")
-                    {
-                        isVolumeNotFound = true
-                    } else {
-                        isVolumeNotFound = false
-                    }
+                let volume: Volume
 
-                    guard isVolumeNotFound else {
-                        throw error
+                if parsed.isAnonymous {
+                    // Anonymous volume so try to create it, inspect if already exists
+                    do {
+                        volume = try await ClientVolume.create(
+                            name: parsed.name,
+                            driver: "local",
+                            driverOpts: [:],
+                            labels: [Volume.anonymousLabel: ""]
+                        )
+                    } catch let error as VolumeError {
+                        guard case .volumeAlreadyExists = error else {
+                            throw error
+                        }
+                        // Volume already exists, just inspect it
+                        volume = try await ClientVolume.inspect(parsed.name)
+                    } catch let error as ContainerizationError {
+                        // Handle XPC-wrapped volumeAlreadyExists error
+                        guard error.message.contains("already exists") else {
+                            throw error
+                        }
+                        volume = try await ClientVolume.inspect(parsed.name)
                     }
-
-                    // Check if this is an anonymous volume (matches the pattern)
-                    guard parsed.name.starts(with: "anon-") && VolumeStorage.isValidVolumeName(parsed.name) else {
-                        throw error  // Re-throw the original volumeNotFound error
-                    }
-                    let volume = try await ClientVolume.create(
-                        name: parsed.name,
-                        driver: "local",
-                        driverOpts: [:],
-                        labels: [Volume.anonymousLabel: ""]
-                    )
-                    let volumeMount = Filesystem.volume(
-                        name: parsed.name,
-                        format: volume.format,
-                        source: volume.source,
-                        destination: parsed.destination,
-                        options: parsed.options
-                    )
-                    resolvedMounts.append(volumeMount)
+                } else {
+                    // Named volume so it must already exist
+                    volume = try await ClientVolume.inspect(parsed.name)
                 }
+
+                let volumeMount = Filesystem.volume(
+                    name: parsed.name,
+                    format: volume.format,
+                    source: volume.source,
+                    destination: parsed.destination,
+                    options: parsed.options
+                )
+                resolvedMounts.append(volumeMount)
             }
         }
 

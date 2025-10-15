@@ -60,7 +60,7 @@ public struct Volume: Sendable, Codable, Equatable, Identifiable {
 
 extension Volume {
     /// Reserved label key for marking anonymous volumes
-    public static let anonymousLabel = "com.apple.container.volume.anonymous"
+    public static let anonymousLabel = "com.apple.container.resource.anonymous"
 
     /// Whether this is an anonymous volume (detected via label)
     public var isAnonymous: Bool {
@@ -98,20 +98,12 @@ public enum VolumeError: Error, LocalizedError {
 /// Volume storage management utilities.
 public struct VolumeStorage {
     public static let volumeNamePattern = "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
-    public static let anonymousVolumePattern = "^anon-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     public static let defaultVolumeSizeBytes: UInt64 = 512 * 1024 * 1024 * 1024  // 512GB
 
     public static func isValidVolumeName(_ name: String) -> Bool {
         guard name.count <= 255 else { return false }
 
         do {
-            // Check if it's an anonymous volume name (anon-{uuid})
-            let anonRegex = try Regex(anonymousVolumePattern)
-            if (try? anonRegex.wholeMatch(in: name)) != nil {
-                return true
-            }
-
-            // Check if it's a regular named volume
             let regex = try Regex(volumeNamePattern)
             return (try? regex.wholeMatch(in: name)) != nil
         } catch {
@@ -119,8 +111,8 @@ public struct VolumeStorage {
         }
     }
 
-    /// Generates an anonymous volume name with the format: anon-{uuid}
+    /// Generates an anonymous volume name with UUID format
     public static func generateAnonymousVolumeName() -> String {
-        "anon-\(UUID().uuidString.lowercased())"
+        UUID().uuidString.lowercased()
     }
 }
