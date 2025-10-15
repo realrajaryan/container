@@ -73,8 +73,8 @@ class TestCLIAnonymousVolumes: CLITest {
         return volumes.contains(name)
     }
 
-    func isValidULID(_ name: String) -> Bool {
-        let pattern = #"^anon-[0-9a-hjkmnp-tv-z]{26}$"#
+    func isValidUUID(_ name: String) -> Bool {
+        let pattern = #"^anon-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"#
         guard let regex = try? Regex(pattern) else { return false }
         return (try? regex.firstMatch(in: name)) != nil
     }
@@ -99,12 +99,16 @@ class TestCLIAnonymousVolumes: CLITest {
         let (_, _, _) = (try? run(arguments: args)) ?? ("", "", 1)
     }
 
-    @Test func testAnonymousVolumeCreationAndAutoCleanup() async throws {
+    @Test func testAnonymousVolumeCreationAndPersistence() async throws {
         let testName = getTestName()
         let containerName = "\(testName)_c1"
 
         defer {
             doRemoveIfExists(name: containerName, force: true)
+            // Clean up anonymous volumes
+            if let volumes = try? getAnonymousVolumeNames() {
+                volumes.forEach { doVolumeDeleteIfExists(name: $0) }
+            }
         }
 
         // Get count of anonymous volumes before
@@ -125,7 +129,7 @@ class TestCLIAnonymousVolumes: CLITest {
 
         #expect(status == 0, "container run should succeed")
 
-        // Give time for cleanup to complete
+        // Give time for container removal to complete
         try await Task.sleep(for: .seconds(1))
 
         // Verify container was removed
@@ -134,9 +138,9 @@ class TestCLIAnonymousVolumes: CLITest {
             .filter { $0.contains(containerName) }
         #expect(containers.isEmpty, "container should be removed with --rm")
 
-        // Verify anonymous volume was also removed
+        // Verify anonymous volume persists (no auto-cleanup)
         let afterCount = try getAnonymousVolumeNames().count
-        #expect(afterCount == beforeCount, "anonymous volume should be removed with --rm")
+        #expect(afterCount == beforeCount + 1, "anonymous volume should persist even with --rm")
     }
 
     @Test func testAnonymousVolumePersistenceWithoutRm() throws {
@@ -193,6 +197,10 @@ class TestCLIAnonymousVolumes: CLITest {
 
         defer {
             doRemoveIfExists(name: containerName, force: true)
+            // Clean up anonymous volumes
+            if let volumes = try? getAnonymousVolumeNames() {
+                volumes.forEach { doVolumeDeleteIfExists(name: $0) }
+            }
         }
 
         let beforeCount = try getAnonymousVolumeNames().count
@@ -212,12 +220,12 @@ class TestCLIAnonymousVolumes: CLITest {
 
         #expect(status == 0, "container run should succeed")
 
-        // Give time for cleanup
+        // Give time for container removal
         try await Task.sleep(for: .seconds(1))
 
-        // All 3 volumes should be deleted
+        // All 3 volumes should persist (no auto-cleanup)
         let afterCount = try getAnonymousVolumeNames().count
-        #expect(afterCount == beforeCount, "all anonymous volumes should be cleaned up")
+        #expect(afterCount == beforeCount + 3, "all 3 anonymous volumes should persist")
     }
 
     @Test func testAnonymousMountSyntax() async throws {
@@ -226,6 +234,10 @@ class TestCLIAnonymousVolumes: CLITest {
 
         defer {
             doRemoveIfExists(name: containerName, force: true)
+            // Clean up anonymous volumes
+            if let volumes = try? getAnonymousVolumeNames() {
+                volumes.forEach { doVolumeDeleteIfExists(name: $0) }
+            }
         }
 
         let beforeCount = try getAnonymousVolumeNames().count
@@ -243,14 +255,15 @@ class TestCLIAnonymousVolumes: CLITest {
 
         #expect(status == 0, "container run with --mount should succeed")
 
-        // Give time for cleanup
+        // Give time for container removal
         try await Task.sleep(for: .seconds(1))
 
+        // Anonymous volume should persist (no auto-cleanup)
         let afterCount = try getAnonymousVolumeNames().count
-        #expect(afterCount == beforeCount, "anonymous volume should be cleaned up")
+        #expect(afterCount == beforeCount + 1, "anonymous volume should persist")
     }
 
-    @Test func testAnonymousVolumeULIDFormat() throws {
+    @Test func testAnonymousVolumeUUIDFormat() throws {
         let testName = getTestName()
         let containerName = "\(testName)_c1"
 
@@ -272,14 +285,14 @@ class TestCLIAnonymousVolumes: CLITest {
 
         let volumeName = volumeNames[0]
 
-        // Verify ULID format: anon-{26 lowercase alphanumeric}
-        #expect(isValidULID(volumeName), "volume name should match ULID format: \(volumeName)")
+        // Verify UUID format: anon-{lowercase uuid}
+        #expect(isValidUUID(volumeName), "volume name should match UUID format: \(volumeName)")
 
         // Verify name starts with anon-
         #expect(volumeName.starts(with: "anon-"), "volume name should start with 'anon-'")
 
-        // Verify total length is 31 (anon- = 5, ULID = 26)
-        #expect(volumeName.count == 31, "volume name should be 31 characters long")
+        // Verify total length is 41 (anon- = 5, UUID = 36)
+        #expect(volumeName.count == 41, "volume name should be 41 characters long")
     }
 
     @Test func testAnonymousVolumeMetadata() throws {
@@ -316,10 +329,6 @@ class TestCLIAnonymousVolumes: CLITest {
 
         if let vol = anonVolume {
             #expect(vol.isAnonymous == true, "isAnonymous should be true")
-            #expect(vol.createdByContainerID != nil, "createdByContainerID should be set")
-            #expect(
-                vol.labels["com.apple.container.volume.anonymous"] == "true",
-                "reserved label should be set")
         }
     }
 
@@ -363,6 +372,10 @@ class TestCLIAnonymousVolumes: CLITest {
         defer {
             doRemoveIfExists(name: containerName, force: true)
             doVolumeDeleteIfExists(name: namedVolumeName)
+            // Clean up anonymous volumes
+            if let volumes = try? getAnonymousVolumeNames() {
+                volumes.forEach { doVolumeDeleteIfExists(name: $0) }
+            }
         }
 
         // Create named volume
@@ -384,16 +397,15 @@ class TestCLIAnonymousVolumes: CLITest {
 
         #expect(status == 0, "container run should succeed")
 
-        // Give time for cleanup
+        // Give time for container removal
         try await Task.sleep(for: .seconds(1))
 
         // Named volume should still exist
         let namedExists = try volumeExists(name: namedVolumeName)
         #expect(namedExists, "named volume should persist")
 
-        // Anonymous volume should be deleted
         let afterAnonCount = try getAnonymousVolumeNames().count
-        #expect(afterAnonCount == beforeAnonCount, "anonymous volume should be deleted")
+        #expect(afterAnonCount == beforeAnonCount + 1, "anonymous volume should persist")
     }
 
     @Test func testAnonymousVolumeManualDeletion() throws {
@@ -432,6 +444,10 @@ class TestCLIAnonymousVolumes: CLITest {
 
         defer {
             doRemoveIfExists(name: containerName, force: true)
+            // Clean up anonymous volumes
+            if let volumes = try? getAnonymousVolumeNames() {
+                volumes.forEach { doVolumeDeleteIfExists(name: $0) }
+            }
         }
 
         let beforeCount = try getAnonymousVolumeNames().count
@@ -459,9 +475,8 @@ class TestCLIAnonymousVolumes: CLITest {
             .filter { $0.contains(containerName) }
         #expect(containers.isEmpty, "container should be auto-removed")
 
-        // Anonymous volume should be removed
         let afterCount = try getAnonymousVolumeNames().count
-        #expect(afterCount == beforeCount, "anonymous volume should be auto-removed")
+        #expect(afterCount == beforeCount + 1, "anonymous volume should persist")
     }
 
     @Test func testAnonymousVolumeErrorOnNonExistentNamedVolume() throws {

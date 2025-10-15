@@ -596,16 +596,21 @@ container volume create [OPTIONS] NAME
 
 **Anonymous Volumes**
 
-Anonymous volumes are auto-created when using `-v /path` or `--mount type=volume,dst=/path` without specifying a source. They use ULID-based naming (`anon-{26-char-ulid}`) and auto-cleanup with `--rm`:
+Anonymous volumes are auto-created when using `-v /path` or `--mount type=volume,dst=/path` without specifying a source. They use UUID-based naming (`anon-{36-char-uuid}`):
 
 ```bash
-# auto-deleted temporary volume
-container run --rm -v /data alpine
-
-# persistent anonymous volume (reuse by ID)
+# Creates anonymous volume
 container run -v /data alpine
-container run -v anon-01k7jpghe4kg4ph5a4vkccksbb:/data alpine
+
+# Reuse anonymous volume by ID
+VOL=$(container volume list -q | grep anon)
+container run -v $VOL:/data alpine
+
+# Manual cleanup
+container volume rm $VOL
 ```
+
+**Note**: Unlike Docker, anonymous volumes do NOT auto-cleanup with `--rm`. Manual deletion is required.
 
 ### `container volume delete (rm)`
 

@@ -172,17 +172,31 @@ public struct Utility {
                     )
                     resolvedMounts.append(volumeMount)
                 } catch {
+                    // Create anonymous volume if the error is specifically "volume not found"
+                    let isVolumeNotFound: Bool
+                    if let volumeError = error as? VolumeError, case .volumeNotFound = volumeError {
+                        isVolumeNotFound = true
+                    } else if let containerError = error as? ContainerizationError,
+                        containerError.message.contains("not found")
+                    {
+                        isVolumeNotFound = true
+                    } else {
+                        isVolumeNotFound = false
+                    }
+
+                    guard isVolumeNotFound else {
+                        throw error
+                    }
+
                     // Check if this is an anonymous volume (matches the pattern)
                     guard parsed.name.starts(with: "anon-") && VolumeStorage.isValidVolumeName(parsed.name) else {
-                        throw ContainerizationError(.invalidArgument, message: "volume '\(parsed.name)' not found")
+                        throw error  // Re-throw the original volumeNotFound error
                     }
                     let volume = try await ClientVolume.create(
                         name: parsed.name,
                         driver: "local",
                         driverOpts: [:],
-                        labels: [:],
-                        isAnonymous: true,
-                        createdByContainerID: id
+                        labels: [Volume.anonymousLabel: ""]
                     )
                     let volumeMount = Filesystem.volume(
                         name: parsed.name,

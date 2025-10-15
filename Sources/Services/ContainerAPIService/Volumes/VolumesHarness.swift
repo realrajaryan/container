@@ -61,17 +61,7 @@ public struct VolumesHarness: Sendable {
             labels = [:]
         }
 
-        let isAnonymous = message.bool(key: .volumeIsAnonymous)
-        let createdByContainerID = message.string(key: .volumeCreatedByContainerID)
-
-        let volume = try await service.create(
-            name: name,
-            driver: driver,
-            driverOpts: driverOpts,
-            labels: labels,
-            isAnonymous: isAnonymous,
-            createdByContainerID: createdByContainerID
-        )
+        let volume = try await service.create(name: name, driver: driver, driverOpts: driverOpts, labels: labels)
         let responseData = try JSONEncoder().encode(volume)
 
         let reply = message.reply()

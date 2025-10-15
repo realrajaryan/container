@@ -36,10 +36,6 @@ public struct Volume: Sendable, Codable, Equatable, Identifiable {
     public var options: [String: String]
     // Size of the volume in bytes (optional).
     public var sizeInBytes: UInt64?
-    // Whether this is an anonymous volume.
-    public var isAnonymous: Bool
-    // The container ID that created this anonymous volume (if applicable).
-    public var createdByContainerID: String?
 
     public init(
         name: String,
@@ -49,29 +45,26 @@ public struct Volume: Sendable, Codable, Equatable, Identifiable {
         createdAt: Date = Date(),
         labels: [String: String] = [:],
         options: [String: String] = [:],
-        sizeInBytes: UInt64? = nil,
-        isAnonymous: Bool = false,
-        createdByContainerID: String? = nil
+        sizeInBytes: UInt64? = nil
     ) {
         self.name = name
         self.driver = driver
         self.format = format
         self.source = source
         self.createdAt = createdAt
-        self.isAnonymous = isAnonymous
-        self.createdByContainerID = createdByContainerID
-
-        // Add reserved label for anonymous volumes to persist the flag
-        var finalLabels = labels
-        if isAnonymous {
-            finalLabels["com.apple.container.volume.anonymous"] = "true"
-            if let containerID = createdByContainerID {
-                finalLabels["com.apple.container.volume.created-by"] = containerID
-            }
-        }
-        self.labels = finalLabels
+        self.labels = labels
         self.options = options
         self.sizeInBytes = sizeInBytes
+    }
+}
+
+extension Volume {
+    /// Reserved label key for marking anonymous volumes
+    public static let anonymousLabel = "com.apple.container.volume.anonymous"
+
+    /// Whether this is an anonymous volume (detected via label)
+    public var isAnonymous: Bool {
+        labels[Self.anonymousLabel] != nil
     }
 }
 
@@ -105,18 +98,14 @@ public enum VolumeError: Error, LocalizedError {
 /// Volume storage management utilities.
 public struct VolumeStorage {
     public static let volumeNamePattern = "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
-    public static let anonymousVolumePattern = "^anon-[0-9a-hjkmnp-tv-z]{26}$"
+    public static let anonymousVolumePattern = "^anon-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     public static let defaultVolumeSizeBytes: UInt64 = 512 * 1024 * 1024 * 1024  // 512GB
-
-    // Crockford Base32 alphabet (lowercase, excludes i, l, o, u to avoid ambiguity)
-    private static let base32Alphabet = "0123456789abcdefghjkmnpqrstvwxyz"
-    private static let base32Mask: UInt64 = 0x1F  // 5 bits for base32 (2^5 = 32)
 
     public static func isValidVolumeName(_ name: String) -> Bool {
         guard name.count <= 255 else { return false }
 
         do {
-            // Check if it's an anonymous volume name (anon-{ulid})
+            // Check if it's an anonymous volume name (anon-{uuid})
             let anonRegex = try Regex(anonymousVolumePattern)
             if (try? anonRegex.wholeMatch(in: name)) != nil {
                 return true
@@ -130,54 +119,8 @@ public struct VolumeStorage {
         }
     }
 
-    /// Generates a ULID (Universally Unique Lexicographically Sortable Identifier)
-    /// Returns a 26-character lowercase string in Crockford Base32 format
-    public static func generateULID() -> String {
-        // ULID format: 48-bit timestamp (6 bytes encoded as 10 base32 chars) + 80-bit randomness (10 bytes encoded as 16 base32 chars) = 26 chars total
-        let timestamp = UInt64(Date().timeIntervalSince1970 * 1000)  // milliseconds since epoch
-
-        // Encode timestamp (48 bits = 10 base32 chars)
-        var timestampChars: [Character] = []
-        var ts = timestamp
-        for _ in 0..<10 {
-            let index = Int(ts & Self.base32Mask)
-            timestampChars.insert(base32Alphabet[base32Alphabet.index(base32Alphabet.startIndex, offsetBy: index)], at: 0)
-            ts >>= 5
-        }
-        var ulid = String(timestampChars)
-
-        // Encode randomness (80 bits = 16 base32 chars)
-        var randomBytes = [UInt8](repeating: 0, count: 10)
-        if SecRandomCopyBytes(kSecRandomDefault, 10, &randomBytes) != errSecSuccess {
-            // Fallback to use UUID for randomness but still encode as base32
-            var uuid = UUID().uuid
-            withUnsafeBytes(of: &uuid) { buffer in
-                // Take first 10 bytes from UUID
-                for i in 0..<min(10, buffer.count) {
-                    randomBytes[i] = buffer[i]
-                }
-            }
-        }
-
-        // Convert random bytes to base32
-        var bits: UInt64 = 0
-        var bitsCount = 0
-        for byte in randomBytes {
-            bits = (bits << 8) | UInt64(byte)
-            bitsCount += 8
-
-            while bitsCount >= 5 {
-                bitsCount -= 5
-                let index = Int((bits >> bitsCount) & Self.base32Mask)
-                ulid += String(base32Alphabet[base32Alphabet.index(base32Alphabet.startIndex, offsetBy: index)])
-            }
-        }
-
-        return ulid
-    }
-
-    /// Generates an anonymous volume name with the format: anon-{ulid}
+    /// Generates an anonymous volume name with the format: anon-{uuid}
     public static func generateAnonymousVolumeName() -> String {
-        "anon-\(generateULID())"
+        "anon-\(UUID().uuidString.lowercased())"
     }
 }
