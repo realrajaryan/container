@@ -368,8 +368,7 @@ public struct Parser {
                 case "tmpfs":
                     fs.type = Filesystem.FSType.tmpfs
                 case "volume":
-                    // Volume type will be set later in source parsing when we create the actual volume filesystem
-                    break
+                    isVolume = true
                 default:
                     throw ContainerizationError(.invalidArgument, message: "unsupported mount type \(val)")
                 }
@@ -416,7 +415,6 @@ public struct Parser {
                     }
 
                     // This is a named volume
-                    isVolume = true
                     volumeName = val
                     fs.source = val
                 case "tmpfs":
@@ -434,6 +432,12 @@ public struct Parser {
         guard isVolume else {
             return .filesystem(fs)
         }
+
+        // If it's a volume type but no source was provided, create an anonymous volume
+        if volumeName.isEmpty {
+            volumeName = VolumeStorage.generateAnonymousVolumeName()
+        }
+
         return .volume(
             ParsedVolume(
                 name: volumeName,
@@ -459,7 +463,18 @@ public struct Parser {
         let parts = vol.split(separator: ":")
         switch parts.count {
         case 1:
-            throw ContainerizationError(.invalidArgument, message: "anonymous volumes are not supported")
+            // Anonymous volume: -v /path
+            // Generate a ULID-based name for the anonymous volume
+            let anonymousName = VolumeStorage.generateAnonymousVolumeName()
+            let destination = String(parts[0])
+            let options: [String] = []
+
+            return .volume(
+                ParsedVolume(
+                    name: anonymousName,
+                    destination: destination,
+                    options: options
+                ))
         case 2, 3:
             let src = String(parts[0])
             let dst = String(parts[1])

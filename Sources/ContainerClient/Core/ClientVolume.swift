@@ -25,7 +25,9 @@ public struct ClientVolume {
         name: String,
         driver: String = "local",
         driverOpts: [String: String] = [:],
-        labels: [String: String] = [:]
+        labels: [String: String] = [:],
+        isAnonymous: Bool = false,
+        createdByContainerID: String? = nil
     ) async throws -> Volume {
         let client = XPCClient(service: serviceIdentifier)
         let message = XPCMessage(route: .volumeCreate)
@@ -37,6 +39,12 @@ public struct ClientVolume {
 
         let labelsData = try JSONEncoder().encode(labels)
         message.set(key: .volumeLabels, value: labelsData)
+
+        message.set(key: .volumeIsAnonymous, value: isAnonymous)
+
+        if let containerID = createdByContainerID {
+            message.set(key: .volumeCreatedByContainerID, value: containerID)
+        }
 
         let reply = try await client.send(message)
 

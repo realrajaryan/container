@@ -44,7 +44,7 @@ extension Application.VolumeCommand {
         }
 
         private func createHeader() -> [[String]] {
-            [["NAME", "DRIVER", "OPTIONS"]]
+            [["NAME", "TYPE", "DRIVER", "OPTIONS"]]
         }
 
         func printVolumes(volumes: [Volume], format: Application.ListFormat) throws {
@@ -61,8 +61,18 @@ extension Application.VolumeCommand {
                 return
             }
 
+            // Sort volumes by creation time
+            // Anonymous volumes: use ULID name (lexicographically time-sortable)
+            // Named volumes: use createdAt timestamp
+            let sortedVolumes = volumes.sorted { v1, v2 in
+                if v1.isAnonymous && v2.isAnonymous {
+                    return v1.name > v2.name  // ULID names are time-sortable
+                }
+                return v1.createdAt > v2.createdAt
+            }
+
             var rows = createHeader()
-            for volume in volumes {
+            for volume in sortedVolumes {
                 rows.append(volume.asRow)
             }
 
@@ -74,9 +84,11 @@ extension Application.VolumeCommand {
 
 extension Volume {
     var asRow: [String] {
+        let volumeType = self.isAnonymous ? "anonymous" : "named"
         let optionsString = options.isEmpty ? "" : options.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
         return [
             self.name,
+            volumeType,
             self.driver,
             optionsString,
         ]

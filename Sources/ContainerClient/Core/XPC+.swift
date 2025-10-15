@@ -115,6 +115,8 @@ public enum XPCKeys: String {
     case volumeLabels
     case volumeReadonly
     case volumeContainerId
+    case volumeIsAnonymous
+    case volumeCreatedByContainerID
 }
 
 public enum XPCRoute: String {

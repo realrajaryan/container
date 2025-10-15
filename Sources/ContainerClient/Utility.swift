@@ -161,6 +161,7 @@ public struct Utility {
                 resolvedMounts.append(fs)
             case .volume(let parsed):
                 do {
+                    // Try to inspect the volume first
                     let volume = try await ClientVolume.inspect(parsed.name)
                     let volumeMount = Filesystem.volume(
                         name: parsed.name,
@@ -171,7 +172,26 @@ public struct Utility {
                     )
                     resolvedMounts.append(volumeMount)
                 } catch {
-                    throw ContainerizationError(.invalidArgument, message: "volume '\(parsed.name)' not found")
+                    // Check if this is an anonymous volume (matches the pattern)
+                    guard parsed.name.starts(with: "anon-") && VolumeStorage.isValidVolumeName(parsed.name) else {
+                        throw ContainerizationError(.invalidArgument, message: "volume '\(parsed.name)' not found")
+                    }
+                    let volume = try await ClientVolume.create(
+                        name: parsed.name,
+                        driver: "local",
+                        driverOpts: [:],
+                        labels: [:],
+                        isAnonymous: true,
+                        createdByContainerID: id
+                    )
+                    let volumeMount = Filesystem.volume(
+                        name: parsed.name,
+                        format: volume.format,
+                        source: volume.source,
+                        destination: parsed.destination,
+                        options: parsed.options
+                    )
+                    resolvedMounts.append(volumeMount)
                 }
             }
         }

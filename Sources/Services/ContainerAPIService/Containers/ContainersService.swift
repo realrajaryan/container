@@ -466,7 +466,10 @@ public actor ContainersService {
 
         let options = try getContainerCreationOptions(id: id)
         if options.autoRemove {
+            // First remove container to unmount volumes
             try await self.cleanup(id: id, context: context)
+            // Then cleanup anonymous volumes (now unmounted and safe to delete)
+            await self.cleanupAnonymousVolumes(forContainer: id)
         }
     }
 
@@ -501,6 +504,47 @@ public actor ContainersService {
 
     private func cleanup(id: String, context: AsyncLock.Context) async throws {
         try await self._cleanup(id: id)
+    }
+
+    /// Clean up anonymous volumes created by a container
+    private func cleanupAnonymousVolumes(forContainer id: String) async {
+        do {
+            // Get all volumes for the container
+            let allVolumes = try await ClientVolume.list()
+            let anonymousVolumes = allVolumes.filter { volume in
+                volume.isAnonymous && volume.createdByContainerID == id
+            }
+
+            // Delete each anonymous volume
+            for volume in anonymousVolumes {
+                do {
+                    try await ClientVolume.delete(name: volume.name)
+                    self.log.info(
+                        "Deleted anonymous volume",
+                        metadata: [
+                            "volume": "\(volume.name)",
+                            "container": "\(id)",
+                        ])
+                } catch {
+                    // Log the error but continue cleaning up other volumes
+                    // Volume might be in use by another container or already deleted
+                    self.log.warning(
+                        "Failed to delete anonymous volume",
+                        metadata: [
+                            "volume": "\(volume.name)",
+                            "container": "\(id)",
+                            "error": "\(error)",
+                        ])
+                }
+            }
+        } catch {
+            self.log.error(
+                "Failed to query anonymous volumes for cleanup",
+                metadata: [
+                    "container": "\(id)",
+                    "error": "\(error)",
+                ])
+        }
     }
 
     private func getContainerCreationOptions(id: String) throws -> ContainerCreateOptions {

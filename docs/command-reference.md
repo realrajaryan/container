@@ -575,11 +575,11 @@ Only global flags are available for debugging, version, and help.
 
 ## Volume Management
 
-Manage persistent volumes for containers.
+Manage persistent volumes for containers. Volumes can be explicitly created with `volume create` or implicitly created using anonymous volume syntax (`-v /path` without a source name).
 
 ### `container volume create`
 
-Creates a new volume with an optional size and driver-specific options.
+Creates a new named volume with an optional size and driver-specific options.
 
 **Usage**
 
@@ -593,6 +593,19 @@ container volume create [OPTIONS] NAME
 *   `--opt <key=value>`: set driver-specific options
 *   `--label <key=value>`: set metadata labels on the volume
 *   **Global**: `--version`, `-h`/`--help`
+
+**Anonymous Volumes**
+
+Anonymous volumes are auto-created when using `-v /path` or `--mount type=volume,dst=/path` without specifying a source. They use ULID-based naming (`anon-{26-char-ulid}`) and auto-cleanup with `--rm`:
+
+```bash
+# auto-deleted temporary volume
+container run --rm -v /data alpine
+
+# persistent anonymous volume (reuse by ID)
+container run -v /data alpine
+container run -v anon-01k7jpghe4kg4ph5a4vkccksbb:/data alpine
+```
 
 ### `container volume delete (rm)`
 

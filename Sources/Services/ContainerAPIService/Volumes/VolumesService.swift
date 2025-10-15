@@ -49,10 +49,19 @@ public actor VolumesService {
         name: String,
         driver: String = "local",
         driverOpts: [String: String] = [:],
-        labels: [String: String] = [:]
+        labels: [String: String] = [:],
+        isAnonymous: Bool = false,
+        createdByContainerID: String? = nil
     ) async throws -> Volume {
         try await lock.withLock { _ in
-            try await self._create(name: name, driver: driver, driverOpts: driverOpts, labels: labels)
+            try await self._create(
+                name: name,
+                driver: driver,
+                driverOpts: driverOpts,
+                labels: labels,
+                isAnonymous: isAnonymous,
+                createdByContainerID: createdByContainerID
+            )
         }
     }
 
@@ -132,7 +141,9 @@ public actor VolumesService {
         name: String,
         driver: String,
         driverOpts: [String: String],
-        labels: [String: String]
+        labels: [String: String],
+        isAnonymous: Bool,
+        createdByContainerID: String?
     ) async throws -> Volume {
         guard VolumeStorage.isValidVolumeName(name) else {
             throw VolumeError.invalidVolumeName("Invalid volume name '\(name)': must match \(VolumeStorage.volumeNamePattern)")
@@ -162,12 +173,20 @@ public actor VolumesService {
             format: "ext4",
             source: blockPath(for: name),
             labels: labels,
-            options: driverOpts
+            options: driverOpts,
+            isAnonymous: isAnonymous,
+            createdByContainerID: createdByContainerID
         )
 
         try await store.create(volume)
 
-        log.info("Created volume", metadata: ["name": "\(name)", "driver": "\(driver)"])
+        log.info(
+            "Created volume",
+            metadata: [
+                "name": "\(name)",
+                "driver": "\(driver)",
+                "isAnonymous": "\(isAnonymous)",
+            ])
         return volume
     }
 
@@ -178,23 +197,26 @@ public actor VolumesService {
 
         // Check if volume exists by trying to list and finding it
         let existingVolumes = try await store.list()
-        guard existingVolumes.contains(where: { $0.name == name }) else {
+        guard let volume = existingVolumes.first(where: { $0.name == name }) else {
             throw VolumeError.volumeNotFound(name)
         }
 
-        // Check if volume is in use by any container atomically
-        try await containersService.withContainerList { containers in
-            for container in containers {
-                for mount in container.configuration.mounts {
-                    if mount.isVolume && mount.volumeName == name {
-                        throw VolumeError.volumeInUse(name)
+        // Only check if volume is in use for named volumes
+        // Anonymous volumes are single-use and safe to delete without checking
+        if !volume.isAnonymous {
+            try await containersService.withContainerList { containers in
+                for container in containers {
+                    for mount in container.configuration.mounts {
+                        if mount.isVolume && mount.volumeName == name {
+                            throw VolumeError.volumeInUse(name)
+                        }
                     }
                 }
             }
-
-            try await self.store.delete(name)
-            try self.removeVolumeDirectory(for: name)
         }
+
+        try await self.store.delete(name)
+        try self.removeVolumeDirectory(for: name)
 
         log.info("Deleted volume", metadata: ["name": "\(name)"])
     }
