@@ -268,7 +268,7 @@ class TestCLIVolumes: CLITest {
         #expect(!volumeExistsBefore, "volume should not exist initially")
 
         // Run container with non-existent named volume - should auto-create
-        let (output, error, status) = try run(arguments: [
+        let (output, _, status) = try run(arguments: [
             "run",
             "--name",
             containerName,
@@ -279,9 +279,6 @@ class TestCLIVolumes: CLITest {
 
         // Should succeed and create volume automatically
         #expect(status == 0, "should succeed and auto-create named volume")
-        #expect(
-            error.contains("does not exist. Creating new volume"),
-            "should warn about auto-creating volume")
         #expect(output.contains("test"), "container should run successfully")
 
         // Volume should now exist
@@ -302,8 +299,8 @@ class TestCLIVolumes: CLITest {
             doVolumeDeleteIfExists(name: volumeName)
         }
 
-        // First container - should auto-create volume with warning
-        let (_, error1, status1) = try run(arguments: [
+        // First container - should auto-create volume
+        let (_, _, status1) = try run(arguments: [
             "run",
             "--name",
             containerName1,
@@ -313,12 +310,9 @@ class TestCLIVolumes: CLITest {
         ])
 
         #expect(status1 == 0, "first container should succeed")
-        #expect(
-            error1.contains("does not exist. Creating new volume"),
-            "should warn about auto-creating volume")
 
-        // Second container - should reuse existing volume without warning
-        let (_, error2, status2) = try run(arguments: [
+        // Second container - should reuse existing volume
+        let (_, _, status2) = try run(arguments: [
             "run",
             "--name",
             containerName2,
@@ -328,8 +322,5 @@ class TestCLIVolumes: CLITest {
         ])
 
         #expect(status2 == 0, "second container should succeed")
-        #expect(
-            !error2.contains("does not exist. Creating new volume"),
-            "should NOT warn when volume already exists")
     }
 }

@@ -284,7 +284,6 @@ public struct Utility {
         let labels = parsed.isAnonymous ? [Volume.anonymousLabel: ""] : [:]
 
         let volume: Volume
-        let volumeCreated: Bool
         do {
             volume = try await ClientVolume.create(
                 name: parsed.name,
@@ -292,31 +291,21 @@ public struct Utility {
                 driverOpts: [:],
                 labels: labels
             )
-            volumeCreated = true
         } catch let error as VolumeError {
             guard case .volumeAlreadyExists = error else {
                 throw error
             }
             // Volume already exists, just inspect it
             volume = try await ClientVolume.inspect(parsed.name)
-            volumeCreated = false
         } catch let error as ContainerizationError {
             // Handle XPC-wrapped volumeAlreadyExists error
             guard error.message.contains("already exists") else {
                 throw error
             }
             volume = try await ClientVolume.inspect(parsed.name)
-            volumeCreated = false
         }
 
-        // Warn user if named volume was auto-created
-        if volumeCreated && !parsed.isAnonymous {
-            let warning = "Volume '\(parsed.name)' does not exist. Creating new volume."
-            let formattedWarning = "\u{001B}[33m\(warning)\u{001B}[0m\n"
-            if let warningData = formattedWarning.data(using: .utf8) {
-                FileHandle.standardError.write(warningData)
-            }
-        }
+        // TODO: Warn user if named volume was auto-created
 
         return volume
     }
