@@ -76,8 +76,8 @@ public actor VolumesService {
         try await lock.withLock { _ in
             let allVolumes = try await self.store.list()
 
-            // Get volumes in use by checking all containers atomically
-            let volumesInUse = try await self.containersService.withContainerList { containers in
+            // do entire prune operation atomically with container list
+            return try await self.containersService.withContainerList { containers in
                 var inUseSet = Set<String>()
                 for container in containers {
                     for mount in container.configuration.mounts {
@@ -86,34 +86,33 @@ public actor VolumesService {
                         }
                     }
                 }
-                return inUseSet
-            }
 
-            let volumesToPrune = allVolumes.filter { volume in
-                !volumesInUse.contains(volume.name)
-            }
-
-            var prunedNames = [String]()
-            var totalSize: UInt64 = 0
-
-            for volume in volumesToPrune {
-                do {
-                    // Calculate actual disk usage before deletion
-                    let volumePath = self.volumePath(for: volume.name)
-                    let actualSize = self.calculateDirectorySize(at: volumePath)
-
-                    try await self.store.delete(volume.name)
-                    try self.removeVolumeDirectory(for: volume.name)
-
-                    prunedNames.append(volume.name)
-                    totalSize += actualSize
-                    self.log.info("Pruned volume", metadata: ["name": "\(volume.name)", "size": "\(actualSize)"])
-                } catch {
-                    self.log.error("Failed to prune volume \(volume.name): \(error)")
+                let volumesToPrune = allVolumes.filter { volume in
+                    !inUseSet.contains(volume.name)
                 }
-            }
 
-            return (prunedNames, totalSize)
+                var prunedNames = [String]()
+                var totalSize: UInt64 = 0
+
+                for volume in volumesToPrune {
+                    do {
+                        // calculate actual disk usage before deletion
+                        let volumePath = self.volumePath(for: volume.name)
+                        let actualSize = self.calculateDirectorySize(at: volumePath)
+
+                        try await self.store.delete(volume.name)
+                        try self.removeVolumeDirectory(for: volume.name)
+
+                        prunedNames.append(volume.name)
+                        totalSize += actualSize
+                        self.log.info("Pruned volume", metadata: ["name": "\(volume.name)", "size": "\(actualSize)"])
+                    } catch {
+                        self.log.error("Failed to prune volume \(volume.name): \(error)")
+                    }
+                }
+
+                return (prunedNames, totalSize)
+            }
         }
     }
 
