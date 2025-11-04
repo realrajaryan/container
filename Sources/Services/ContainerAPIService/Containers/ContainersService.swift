@@ -90,19 +90,12 @@ public actor ContainersService {
                     )
                 )
                 results[config.id] = state
-                let plugin = runtimePlugins.first { $0.name == config.runtimeHandler }
-                guard let plugin else {
+                guard runtimePlugins.first(where: { $0.name == config.runtimeHandler }) != nil else {
                     throw ContainerizationError(
                         .internalError,
                         message: "failed to find runtime plugin \(config.runtimeHandler)"
                     )
                 }
-                try Self.registerService(
-                    plugin: plugin,
-                    loader: loader,
-                    configuration: config,
-                    path: dir
-                )
             } catch {
                 try? FileManager.default.removeItem(at: dir)
                 log.warning("failed to load container bundle at \(dir.path)")
@@ -159,10 +152,7 @@ public actor ContainersService {
                 )
             }
 
-            let runtimePlugin = self.runtimePlugins.filter {
-                $0.name == configuration.runtimeHandler
-            }.first
-            guard let runtimePlugin else {
+            guard self.runtimePlugins.first(where: { $0.name == configuration.runtimeHandler }) != nil else {
                 throw ContainerizationError(
                     .notFound,
                     message: "unable to locate runtime plugin \(configuration.runtimeHandler)"
@@ -184,13 +174,6 @@ public actor ContainersService {
                 let imageFs = try await containerImage.getCreateSnapshot(platform: configuration.platform)
                 try bundle.setContainerRootFs(cloning: imageFs)
                 try bundle.write(filename: "options.json", value: options)
-
-                try Self.registerService(
-                    plugin: runtimePlugin,
-                    loader: self.pluginLoader,
-                    configuration: configuration,
-                    path: path
-                )
 
                 let snapshot = ContainerSnapshot(
                     configuration: configuration,
@@ -226,22 +209,6 @@ public actor ContainersService {
                 let path = self.containerRoot.appendingPathComponent(id)
                 let bundle = ContainerClient.Bundle(path: path)
                 let config = try bundle.configuration
-                let label = Self.fullLaunchdServiceLabel(
-                    runtimeName: config.runtimeHandler,
-                    instanceId: id
-                )
-
-                let isRegistered = try ServiceManager.isRegistered(fullServiceLabel: label)
-
-                if isRegistered {
-                    // Stale service exists
-                    self.log.warning("Found stale launchd service for \(id), cleaning up")
-                    try? ServiceManager.kill(fullServiceLabel: label, signal: SIGKILL)
-                    try? await Task.sleep(for: .milliseconds(100))
-                    try? ServiceManager.deregister(fullServiceLabel: label)
-                }
-
-                // Always register service
                 try Self.registerService(
                     plugin: self.runtimePlugins.first { $0.name == config.runtimeHandler }!,
                     loader: self.pluginLoader,
@@ -483,28 +450,23 @@ public actor ContainersService {
 
         await self.exitMonitor.stopTracking(id: id)
 
-        // Shutdown the runtime helper immediately to prevent reconnection
-        do {
-            self.log.info("Shutting down sandbox service for \(id)")
+        // Shutdown and deregister the sandbox service
+        self.log.info("Shutting down sandbox service for \(id)")
 
-            let path = self.containerRoot.appendingPathComponent(id)
-            let bundle = ContainerClient.Bundle(path: path)
-            let config = try bundle.configuration
-            let label = Self.fullLaunchdServiceLabel(
-                runtimeName: config.runtimeHandler,
-                instanceId: id
-            )
+        let path = self.containerRoot.appendingPathComponent(id)
+        let bundle = ContainerClient.Bundle(path: path)
+        let config = try bundle.configuration
+        let label = Self.fullLaunchdServiceLabel(
+            runtimeName: config.runtimeHandler,
+            instanceId: id
+        )
 
-            let client = try state.getClient()
-            try? await client.shutdown()
-            try? ServiceManager.kill(fullServiceLabel: label, signal: SIGKILL)
-            try? await Task.sleep(for: .milliseconds(100))
+        let client = try state.getClient()
+        try await client.shutdown()
 
-            try ServiceManager.deregister(fullServiceLabel: label)
-            self.log.info("Cleaned up sandbox service for \(id)")
-        } catch {
-            self.log.error("failed to cleanup sandbox service for \(id): \(error)")
-        }
+        // Deregister the service, launchd will terminate the process
+        try ServiceManager.deregister(fullServiceLabel: label)
+        self.log.info("Deregistered sandbox service for \(id)")
 
         state.snapshot.status = .stopped
         state.snapshot.networks = []
