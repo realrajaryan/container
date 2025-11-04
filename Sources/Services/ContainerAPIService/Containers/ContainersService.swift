@@ -223,6 +223,32 @@ public actor ContainersService {
                     return
                 }
 
+                let path = self.containerRoot.appendingPathComponent(id)
+                let bundle = ContainerClient.Bundle(path: path)
+                let config = try bundle.configuration
+                let label = Self.fullLaunchdServiceLabel(
+                    runtimeName: config.runtimeHandler,
+                    instanceId: id
+                )
+
+                let isRegistered = try ServiceManager.isRegistered(fullServiceLabel: label)
+
+                if isRegistered {
+                    // Stale service exists
+                    self.log.warning("Found stale launchd service for \(id), cleaning up")
+                    try? ServiceManager.kill(fullServiceLabel: label, signal: SIGKILL)
+                    try? await Task.sleep(for: .milliseconds(100))
+                    try? ServiceManager.deregister(fullServiceLabel: label)
+                }
+
+                // Always register service
+                try Self.registerService(
+                    plugin: self.runtimePlugins.first { $0.name == config.runtimeHandler }!,
+                    loader: self.pluginLoader,
+                    configuration: config,
+                    path: path
+                )
+
                 let runtime = state.snapshot.configuration.runtimeHandler
                 let sandboxClient = try await SandboxClient.create(
                     id: id,
@@ -457,14 +483,27 @@ public actor ContainersService {
 
         await self.exitMonitor.stopTracking(id: id)
 
-        // Try and shutdown the runtime helper.
+        // Shutdown the runtime helper immediately to prevent reconnection
         do {
             self.log.info("Shutting down sandbox service for \(id)")
 
+            let path = self.containerRoot.appendingPathComponent(id)
+            let bundle = ContainerClient.Bundle(path: path)
+            let config = try bundle.configuration
+            let label = Self.fullLaunchdServiceLabel(
+                runtimeName: config.runtimeHandler,
+                instanceId: id
+            )
+
             let client = try state.getClient()
-            try await client.shutdown()
+            try? await client.shutdown()
+            try? ServiceManager.kill(fullServiceLabel: label, signal: SIGKILL)
+            try? await Task.sleep(for: .milliseconds(100))
+
+            try ServiceManager.deregister(fullServiceLabel: label)
+            self.log.info("Cleaned up sandbox service for \(id)")
         } catch {
-            self.log.error("failed to shutdown sandbox service for \(id): \(error)")
+            self.log.error("failed to cleanup sandbox service for \(id): \(error)")
         }
 
         state.snapshot.status = .stopped
