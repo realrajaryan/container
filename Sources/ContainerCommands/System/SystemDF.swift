@@ -96,10 +96,7 @@ extension Application {
                 return "0 B"
             }
             let formatter = ByteCountFormatter()
-            formatter.countStyle = .binary
-            formatter.allowedUnits = [.useAll]
-            formatter.includesUnit = true
-            formatter.includesCount = true
+            formatter.countStyle = .file
             return formatter.string(fromByteCount: Int64(bytes))
         }
 
