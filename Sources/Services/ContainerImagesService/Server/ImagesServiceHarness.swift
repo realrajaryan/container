@@ -174,7 +174,25 @@ public struct ImagesServiceHarness: Sendable {
 
     @Sendable
     public func prune(_ message: XPCMessage) async throws -> XPCMessage {
-        let (deleted, size) = try await service.prune()
+        guard let keepingReferencesData = message.dataNoCopy(key: .keepingReferences) else {
+            throw ContainerizationError(
+                .invalidArgument,
+                message: "missing keepingReferences"
+            )
+        }
+        let keepingReferences = try JSONDecoder().decode([String].self, from: keepingReferencesData)
+
+        let (deleted, size) = try await service.prune(keepingReferences: keepingReferences)
+        let reply = message.reply()
+        let data = try JSONEncoder().encode(deleted)
+        reply.set(key: .digests, value: data)
+        reply.set(key: .size, value: size)
+        return reply
+    }
+
+    @Sendable
+    public func cleanupOrphanedBlobs(_ message: XPCMessage) async throws -> XPCMessage {
+        let (deleted, size) = try await service.cleanupOrphanedBlobs()
         let reply = message.reply()
         let data = try JSONEncoder().encode(deleted)
         reply.set(key: .digests, value: data)

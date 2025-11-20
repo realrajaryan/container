@@ -118,10 +118,17 @@ public actor ImagesService {
         return images
     }
 
-    public func prune() async throws -> ([String], UInt64) {
+    public func prune(keepingReferences: [String]) async throws -> ([String], UInt64) {
         let images = try await self._list()
         let freedSnapshotBytes = try await self.snapshotStore.clean(keepingSnapshotsFor: images)
-        let (deleted, freedContentBytes) = try await self.imageStore.prune()
+        let (deleted, freedContentBytes) = try await self.imageStore.prune(keepingReferences: keepingReferences)
+        return (deleted, freedContentBytes + freedSnapshotBytes)
+    }
+
+    public func cleanupOrphanedBlobs() async throws -> ([String], UInt64) {
+        let images = try await self._list()
+        let freedSnapshotBytes = try await self.snapshotStore.clean(keepingSnapshotsFor: images)
+        let (deleted, freedContentBytes) = try await self.imageStore.cleanupOrphanedBlobs()
         return (deleted, freedContentBytes + freedSnapshotBytes)
     }
 }

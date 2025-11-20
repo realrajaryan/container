@@ -284,9 +284,22 @@ extension ClientImage {
         }
     }
 
-    public static func pruneImages() async throws -> ([String], UInt64) {
+    public static func pruneImages(keepingReferences: [String]) async throws -> ([String], UInt64) {
         let client = newXPCClient()
         let request = newRequest(.imagePrune)
+
+        let data = try JSONEncoder().encode(keepingReferences)
+        request.set(key: .keepingReferences, value: data)
+
+        let response = try await client.send(request)
+        let digests = try response.digests()
+        let size = response.uint64(key: .size)
+        return (digests, size)
+    }
+
+    public static func cleanupOrphanedBlobs() async throws -> ([String], UInt64) {
+        let client = newXPCClient()
+        let request = newRequest(.imageCleanupOrphanedBlobs)
         let response = try await client.send(request)
         let digests = try response.digests()
         let size = response.uint64(key: .size)
