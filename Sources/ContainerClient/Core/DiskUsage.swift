@@ -43,15 +43,15 @@ public struct ResourceUsage: Sendable, Codable {
     public var active: Int
 
     /// Total size in bytes
-    public var size: UInt64
+    public var sizeInBytes: UInt64
 
     /// Reclaimable size in bytes (from unused/inactive resources)
     public var reclaimable: UInt64
 
-    public init(total: Int, active: Int, size: UInt64, reclaimable: UInt64) {
+    public init(total: Int, active: Int, sizeInBytes: UInt64, reclaimable: UInt64) {
         self.total = total
         self.active = active
-        self.size = size
+        self.sizeInBytes = sizeInBytes
         self.reclaimable = reclaimable
     }
 }

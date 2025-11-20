@@ -49,21 +49,21 @@ public actor DiskUsageService {
 
         let stats = DiskUsageStats(
             images: ResourceUsage(
-                total: imageData.0,
-                active: imageData.1,
-                size: imageData.2,
-                reclaimable: imageData.3
+                total: imageData.totalCount,
+                active: imageData.activeCount,
+                sizeInBytes: imageData.totalSize,
+                reclaimable: imageData.reclaimableSize
             ),
             containers: ResourceUsage(
                 total: containerData.0,
                 active: containerData.1,
-                size: containerData.2,
+                sizeInBytes: containerData.2,
                 reclaimable: containerData.3
             ),
             volumes: ResourceUsage(
                 total: volumeData.0,
                 active: volumeData.1,
-                size: volumeData.2,
+                sizeInBytes: volumeData.2,
                 reclaimable: volumeData.3
             )
         )
@@ -71,7 +71,7 @@ public actor DiskUsageService {
         log.debug(
             "disk usage calculation complete",
             metadata: [
-                "images_total": "\(imageData.0)",
+                "images_total": "\(imageData.totalCount)",
                 "containers_total": "\(containerData.0)",
                 "volumes_total": "\(volumeData.0)",
             ])

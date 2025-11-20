@@ -65,8 +65,8 @@ extension Application {
                 "Images",
                 "\(stats.images.total)",
                 "\(stats.images.active)",
-                formatSize(stats.images.size),
-                formatReclaimable(stats.images.reclaimable, total: stats.images.size),
+                formatSize(stats.images.sizeInBytes),
+                formatReclaimable(stats.images.reclaimable, total: stats.images.sizeInBytes),
             ])
 
             // Containers row
@@ -74,8 +74,8 @@ extension Application {
                 "Containers",
                 "\(stats.containers.total)",
                 "\(stats.containers.active)",
-                formatSize(stats.containers.size),
-                formatReclaimable(stats.containers.reclaimable, total: stats.containers.size),
+                formatSize(stats.containers.sizeInBytes),
+                formatReclaimable(stats.containers.reclaimable, total: stats.containers.sizeInBytes),
             ])
 
             // Volumes row
@@ -83,8 +83,8 @@ extension Application {
                 "Local Volumes",
                 "\(stats.volumes.total)",
                 "\(stats.volumes.active)",
-                formatSize(stats.volumes.size),
-                formatReclaimable(stats.volumes.reclaimable, total: stats.volumes.size),
+                formatSize(stats.volumes.sizeInBytes),
+                formatReclaimable(stats.volumes.reclaimable, total: stats.volumes.sizeInBytes),
             ])
 
             let tableFormatter = TableOutput(rows: rows)
