@@ -16,6 +16,7 @@
 
 import ContainerizationError
 import ContainerizationExtras
+import ContainerPersistence
 import Foundation
 import Testing
 
@@ -1042,5 +1043,36 @@ struct ParserTest {
         #expect(result[0].limit == "RLIMIT_NPROC")
         #expect(result[0].soft == UInt64.max - 1)
         #expect(result[0].hard == UInt64.max)
+    }
+
+    // MARK: - Parser.resources
+
+    @Test
+    func testResourcesCPUsFromProperty() throws {
+        DefaultsStore.set(value: "8", key: .defaultContainerCPUs)
+        defer { DefaultsStore.unset(key: .defaultContainerCPUs) }
+        let result = try Parser.resources(cpus: nil, memory: nil)
+        #expect(result.cpus == 8)
+    }
+
+    @Test
+    func testResourcesMemoryFromProperty() throws {
+        DefaultsStore.set(value: "2g", key: .defaultContainerMemory)
+        defer { DefaultsStore.unset(key: .defaultContainerMemory) }
+        let result = try Parser.resources(cpus: nil, memory: nil)
+        #expect(result.memoryInBytes == 2048.mib())
+    }
+
+    @Test
+    func testResourcesFlagOverridesProperty() throws {
+        DefaultsStore.set(value: "8", key: .defaultContainerCPUs)
+        DefaultsStore.set(value: "2g", key: .defaultContainerMemory)
+        defer {
+            DefaultsStore.unset(key: .defaultContainerCPUs)
+            DefaultsStore.unset(key: .defaultContainerMemory)
+        }
+        let result = try Parser.resources(cpus: 1, memory: "256m")
+        #expect(result.cpus == 1)
+        #expect(result.memoryInBytes == 256.mib())
     }
 }
