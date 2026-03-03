@@ -45,7 +45,7 @@ public enum VolumeOrFilesystem {
 }
 
 public struct Parser {
-    public static func memoryString(_ memory: String) throws -> Int64 {
+    public static func memoryStringAsMiB(_ memory: String) throws -> Int64 {
         let ram = try Measurement.parse(parsing: memory)
         let mb = ram.converted(to: .mebibytes)
         return Int64(mb.value)
@@ -97,9 +97,9 @@ public struct Parser {
             resource.cpus = cpuVal
         }
         if let memory {
-            resource.memoryInBytes = try Parser.memoryString(memory).mib()
+            resource.memoryInBytes = try Parser.memoryStringAsMiB(memory).mib()
         } else if let memStr = DefaultsStore.getOptional(key: .defaultContainerMemory) {
-            resource.memoryInBytes = try Parser.memoryString(memStr).mib()
+            resource.memoryInBytes = try Parser.memoryStringAsMiB(memStr).mib()
         }
         return resource
     }
@@ -403,7 +403,7 @@ public struct Parser {
                     throw ContainerizationError(.invalidArgument, message: "unsupported option size for \(type) mount")
                 }
                 var overflow: Bool
-                var memory = try Parser.memoryString(val)
+                var memory = try Parser.memoryStringAsMiB(val)
                 (memory, overflow) = memory.multipliedReportingOverflow(by: 1024 * 1024)
                 if overflow {
                     throw ContainerizationError(.invalidArgument, message: "overflow encountered when parsing memory string: \(val)")

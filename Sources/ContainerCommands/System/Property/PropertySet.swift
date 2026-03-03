@@ -75,7 +75,7 @@ extension Application {
                 }
                 DefaultsStore.set(value: value, key: key)
             case .defaultContainerMemory:
-                guard let memoryMiB = try? Parser.memoryString(value), memoryMiB > 0 else {
+                guard let memoryMiB = try? Parser.memoryStringAsMiB(value), memoryMiB > 0 else {
                     throw ContainerizationError(.invalidArgument, message: "invalid memory value: \(value)")
                 }
                 DefaultsStore.set(value: value, key: key)
