@@ -31,7 +31,7 @@ public struct Attachment: Codable, Sendable {
     public let ipv6Address: CIDRv6?
     /// The MAC address associated with the attachment (optional).
     public let macAddress: MACAddress?
-    /// The MTU for the network interface (optional). Defaults to 1280 if not specified.
+    /// The MTU for the network interface.
     public let mtu: UInt32?
 
     public init(
