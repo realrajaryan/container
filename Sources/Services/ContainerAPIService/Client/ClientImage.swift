@@ -283,6 +283,48 @@ extension ClientImage {
         return image
     }
 
+    public static func pushAllTags(
+        reference: String, platform: Platform? = nil, scheme: RequestScheme = .auto, maxConcurrentUploads: Int = 3, progressUpdate: ProgressUpdateHandler? = nil
+    ) async throws {
+        guard maxConcurrentUploads > 0 else {
+            throw ContainerizationError(.invalidArgument, message: "maximum number of concurrent uploads must be greater than 0, got \(maxConcurrentUploads)")
+        }
+
+        // Normalize the reference, then extract the repository name without the tag.
+        let normalized = try Self.normalizeReference(reference)
+        let parsedRef = try Reference.parse(normalized)
+
+        let repositoryName: String
+        if let resolved = parsedRef.resolvedDomain {
+            repositoryName = "\(resolved)/\(parsedRef.path)"
+        } else {
+            repositoryName = parsedRef.name
+        }
+
+        guard let host = parsedRef.domain else {
+            throw ContainerizationError(.invalidArgument, message: "could not extract host from reference \(normalized)")
+        }
+
+        let client = newXPCClient()
+        let request = newRequest(.imagePush)
+
+        request.set(key: .imageRepository, value: repositoryName)
+        request.set(key: .allTags, value: true)
+        try request.set(platform: platform)
+
+        let insecure = try scheme.schemeFor(host: host) == .http
+        request.set(key: .insecureFlag, value: insecure)
+        request.set(key: .maxConcurrentUploads, value: Int64(maxConcurrentUploads))
+
+        var progressUpdateClient: ProgressUpdateClient?
+        if let progressUpdate {
+            progressUpdateClient = await ProgressUpdateClient(for: progressUpdate, request: request)
+        }
+
+        _ = try await client.send(request)
+        await progressUpdateClient?.finish()
+    }
+
     public static func delete(reference: String, garbageCollect: Bool = false) async throws {
         let client = newXPCClient()
         let request = newRequest(.imageDelete)
