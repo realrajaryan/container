@@ -283,9 +283,10 @@ extension ClientImage {
         return image
     }
 
+    @discardableResult
     public static func pushAllTags(
         reference: String, platform: Platform? = nil, scheme: RequestScheme = .auto, maxConcurrentUploads: Int = 3, progressUpdate: ProgressUpdateHandler? = nil
-    ) async throws {
+    ) async throws -> [ClientImage] {
         guard maxConcurrentUploads > 0 else {
             throw ContainerizationError(.invalidArgument, message: "maximum number of concurrent uploads must be greater than 0, got \(maxConcurrentUploads)")
         }
@@ -321,8 +322,13 @@ extension ClientImage {
             progressUpdateClient = await ProgressUpdateClient(for: progressUpdate, request: request)
         }
 
-        _ = try await client.send(request)
+        let response = try await client.send(request)
         await progressUpdateClient?.finish()
+
+        let imageDescriptions = try response.imageDescriptions()
+        return imageDescriptions.map { desc in
+            ClientImage(description: desc)
+        }
     }
 
     public static func delete(reference: String, garbageCollect: Bool = false) async throws {

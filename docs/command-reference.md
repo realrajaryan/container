@@ -533,9 +533,9 @@ container image push [--scheme <scheme>] [--progress <type>] [--arch <arch>] [--
 
 *   `--scheme <scheme>`: Scheme to use when connecting to the container registry. One of (http, https, auto) (default: auto)
 *   `--progress <type>`: Progress type (format: none|ansi) (default: ansi)
-*   `-a, --all-tags`: Push all tags of an image
+*   `--all-tags`: Push all tags of an image
 *   `--max-concurrent-uploads <count>`: Maximum number of concurrent uploads with --all-tags (default: 3)
-*   `--arch <arch>`: Limit the push to the specified architecture
+*   `-a, --arch <arch>`: Limit the push to the specified architecture
 *   `--os <os>`: Limit the push to the specified OS
 *   `--platform <platform>`: Limit the push to the specified platform (format: os/arch[/variant], takes precedence over --os and --arch)
 

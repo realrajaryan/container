@@ -39,7 +39,7 @@ extension Application {
         var imageUploadFlags: Flags.ImageUpload
 
         @Option(
-            name: .long,
+            name: .shortAndLong,
             help: "Limit the push to the specified architecture"
         )
         var arch: String?
@@ -52,7 +52,7 @@ extension Application {
         @Option(help: "Limit the push to the specified platform (format: os/arch[/variant], takes precedence over --os and --arch) [environment: CONTAINER_DEFAULT_PLATFORM]")
         var platform: String?
 
-        @Flag(name: .shortAndLong, help: "Push all tags of an image")
+        @Flag(name: .long, help: "Push all tags of an image")
         var allTags: Bool = false
 
         @OptionGroup
@@ -66,10 +66,10 @@ extension Application {
             if allTags {
                 let ref = try Reference.parse(reference)
                 if ref.tag != nil {
-                    throw ContainerizationError(.invalidArgument, message: "tag can't be used with --all-tags/-a")
+                    throw ContainerizationError(.invalidArgument, message: "tag can't be used with --all-tags")
                 }
                 if ref.digest != nil {
-                    throw ContainerizationError(.invalidArgument, message: "digest can't be used with --all-tags/-a")
+                    throw ContainerizationError(.invalidArgument, message: "digest can't be used with --all-tags")
                 }
             }
         }
@@ -115,29 +115,7 @@ extension Application {
                 log.warning("--platform/--arch/--os with --all-tags filters each tag push to the specified platform; tags without matching manifests may fail")
             }
 
-            // Enumerate matching tags for display before pushing.
-            let allImages = try await ClientImage.list()
             let normalized = try ClientImage.normalizeReference(reference)
-            let parsedRef = try Reference.parse(normalized)
-            let repoName: String
-            if let resolved = parsedRef.resolvedDomain {
-                repoName = "\(resolved)/\(parsedRef.path)"
-            } else {
-                repoName = parsedRef.name
-            }
-
-            let matchingTags = allImages.filter { img in
-                guard !Utility.isInfraImage(name: img.reference) else { return false }
-                guard let ref = try? Reference.parse(img.reference) else { return false }
-                let resolvedName: String
-                if let resolved = ref.resolvedDomain {
-                    resolvedName = "\(resolved)/\(ref.path)"
-                } else {
-                    resolvedName = ref.name
-                }
-                return resolvedName == repoName
-            }
-
             let displayRepo = try ClientImage.denormalizeReference(normalized)
             let displayName = try Reference.parse(displayRepo).name
             print("The push refers to repository [\(displayName)]")
@@ -147,7 +125,7 @@ extension Application {
             case .none: progressConfig = try ProgressConfig(disableProgressUpdates: true)
             case .ansi:
                 progressConfig = try ProgressConfig(
-                    description: "Pushing \(matchingTags.count) tags",
+                    description: "Pushing tags",
                     showPercent: false,
                     showItems: false,
                     showSpeed: false,
@@ -160,13 +138,13 @@ extension Application {
                 progress.finish()
             }
             progress.start()
-            try await ClientImage.pushAllTags(
+            let pushed = try await ClientImage.pushAllTags(
                 reference: reference, platform: platform, scheme: scheme,
                 maxConcurrentUploads: imageUploadFlags.maxConcurrentUploads, progressUpdate: progress.handler)
             progress.finish()
 
             let formatter = ByteCountFormatter()
-            for img in matchingTags {
+            for img in pushed {
                 let tag = (try? Reference.parse(img.reference))?.tag ?? "<none>"
                 let size = formatter.string(fromByteCount: img.descriptor.size)
                 print("\(tag): digest: \(img.descriptor.digest) size: \(size)")
