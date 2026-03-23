@@ -141,7 +141,9 @@ public actor ImagesService {
         }
     }
 
-    public func pushAllTags(repositoryName: String, platform: Platform?, insecure: Bool, maxConcurrentUploads: Int, progressUpdate: ProgressUpdateHandler?) async throws {
+    public func pushAllTags(repositoryName: String, platform: Platform?, insecure: Bool, maxConcurrentUploads: Int, progressUpdate: ProgressUpdateHandler?) async throws
+        -> [ImageDescription]
+    {
         self.log.debug(
             "ImagesService: enter",
             metadata: [
@@ -224,6 +226,8 @@ public actor ImagesService {
                 throw ContainerizationError(.internalError, message: "failed to push one or more tags:\n\(details)")
             }
         }
+
+        return matchingImages.map { $0.description.fromCZ }
     }
 
     public func tag(old: String, new: String) async throws -> ImageDescription {

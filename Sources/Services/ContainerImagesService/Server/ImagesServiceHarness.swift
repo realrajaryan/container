@@ -80,9 +80,14 @@ public struct ImagesServiceHarness: Sendable {
                 )
             }
             let maxConcurrentUploads = message.int64(key: .maxConcurrentUploads)
-            try await service.pushAllTags(
+            let pushed = try await service.pushAllTags(
                 repositoryName: repository, platform: platform, insecure: insecure,
                 maxConcurrentUploads: Int(maxConcurrentUploads), progressUpdate: progressUpdateService?.handler)
+
+            let reply = message.reply()
+            let imageData = try JSONEncoder().encode(pushed)
+            reply.set(key: .imageDescriptions, value: imageData)
+            return reply
         } else {
             let ref = message.string(key: .imageReference)
             guard let ref else {

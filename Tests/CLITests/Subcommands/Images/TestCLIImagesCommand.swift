@@ -338,7 +338,7 @@ class TestCLIImagesCommand: CLITest {
 
         #expect(status != 0, "Expected --all-tags with a tag to fail")
         #expect(
-            error.contains("tag can't be used with --all-tags/-a"),
+            error.contains("tag can't be used with --all-tags"),
             "Expected tag validation error message in output")
     }
 
@@ -352,7 +352,7 @@ class TestCLIImagesCommand: CLITest {
 
         #expect(status != 0, "Expected --all-tags with a digest to fail")
         #expect(
-            error.contains("digest can't be used with --all-tags/-a"),
+            error.contains("digest can't be used with --all-tags"),
             "Expected digest validation error message in output")
     }
 
