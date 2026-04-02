@@ -45,7 +45,6 @@ extension Application.VolumeCommand {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
-
             let data = try encoder.encode(volumes)
             print(String(decoding: data, as: UTF8.self))
         }

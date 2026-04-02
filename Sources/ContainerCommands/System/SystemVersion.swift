@@ -75,8 +75,7 @@ extension Application {
         }
 
         private func printVersionJSON(versions: [VersionInfo]) throws {
-            let data = try JSONEncoder().encode(versions)
-            print(String(data: data, encoding: .utf8) ?? "[]")
+            try printJSON(versions)
         }
     }
 
