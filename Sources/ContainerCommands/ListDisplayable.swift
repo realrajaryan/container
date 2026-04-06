@@ -19,7 +19,7 @@
 /// Conformers provide the column headers, row values, and a primary identifier
 /// for quiet mode. JSON encoding is handled separately by each command using
 /// its own data model.
-protocol ListDisplayable {
+public protocol ListDisplayable {
     /// Column headers for table output (e.g., `["ID", "IMAGE", "STATE"]`).
     static var tableHeader: [String] { get }
     /// The values for each column, matching the order of ``tableHeader``.

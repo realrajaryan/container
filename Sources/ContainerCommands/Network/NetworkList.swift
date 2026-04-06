@@ -54,18 +54,18 @@ extension Application {
 }
 
 extension PrintableNetwork: ListDisplayable {
-    static var tableHeader: [String] {
+    public static var tableHeader: [String] {
         ["NETWORK", "STATE", "SUBNET"]
     }
 
-    var tableRow: [String] {
+    public var tableRow: [String] {
         if let status {
             return [self.id, self.state, status.ipv4Subnet.description]
         }
         return [self.id, self.state, "none"]
     }
 
-    var quietValue: String {
+    public var quietValue: String {
         self.id
     }
 }
