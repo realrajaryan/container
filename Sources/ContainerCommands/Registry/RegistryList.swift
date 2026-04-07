@@ -43,12 +43,11 @@ extension Application {
             let registryInfos = try keychain.list()
             let registries = registryInfos.map { RegistryResource(from: $0) }
 
-            if format == .json {
-                try emit(renderJSON(registries))
-                return
-            }
-
-            emit(renderList(registries.map { PrintableRegistry($0) }, quiet: quiet))
+            try Output.render(
+                json: registries,
+                display: registries.map { PrintableRegistry($0) },
+                format: format, quiet: quiet
+            )
         }
     }
 }

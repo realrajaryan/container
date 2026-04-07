@@ -37,7 +37,7 @@ extension Application {
             let stats = try await ClientDiskUsage.get()
 
             if format == .json {
-                try emit(renderJSON(stats, options: .prettySorted))
+                try Output.emit(Output.renderJSON(stats, options: .prettySorted))
                 return
             }
 

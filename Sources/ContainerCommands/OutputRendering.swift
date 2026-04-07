@@ -33,36 +33,56 @@ public struct JSONOptions: Sendable {
     }
 }
 
-/// Renders an `Encodable` value as a JSON string.
-public func renderJSON<T: Encodable>(_ value: T, options: JSONOptions = .compact) throws -> String {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = options.outputFormatting
-    encoder.dateEncodingStrategy = options.dateEncodingStrategy
-    let data = try encoder.encode(value)
-    return String(decoding: data, as: UTF8.self)
-}
-
-/// Renders a list of displayable items as a table (with header) or quiet-mode identifiers.
-public func renderList<T: ListDisplayable>(_ items: [T], quiet: Bool) -> String {
-    if quiet {
-        return items.map(\.quietValue).joined(separator: "\n")
+/// Shared rendering helpers for CLI output.
+///
+/// All list commands route their output through these methods. JSON rendering
+/// is separate from table/quiet rendering because the JSON model often differs
+/// from the display model (e.g., `Volume` for JSON vs `PrintableVolume` for table).
+public enum Output {
+    /// Renders an `Encodable` value as a JSON string.
+    public static func renderJSON<T: Encodable>(_ value: T, options: JSONOptions = .compact) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = options.outputFormatting
+        encoder.dateEncodingStrategy = options.dateEncodingStrategy
+        let data = try encoder.encode(value)
+        return String(decoding: data, as: UTF8.self)
     }
-    return renderTable(items)
-}
 
-/// Renders a list of displayable items as a column-aligned table with a header row.
-public func renderTable<T: ListDisplayable>(_ items: [T]) -> String {
-    var rows: [[String]] = [T.tableHeader]
-    for item in items {
-        rows.append(item.tableRow)
+    /// Renders a list of displayable items as a table (with header) or quiet-mode identifiers.
+    public static func renderList<T: ListDisplayable>(_ items: [T], quiet: Bool) -> String {
+        if quiet {
+            return items.map(\.quietValue).joined(separator: "\n")
+        }
+        return renderTable(items)
     }
-    return TableOutput(rows: rows).format()
-}
 
-/// Writes rendered output to stdout. No-ops on empty strings to avoid blank lines
-/// (e.g., `container list -q` with zero results should produce no output, not a newline).
-public func emit(_ output: String) {
-    if !output.isEmpty {
-        print(output)
+    /// Renders a list of displayable items as a column-aligned table with a header row.
+    public static func renderTable<T: ListDisplayable>(_ items: [T]) -> String {
+        var rows: [[String]] = [T.tableHeader]
+        for item in items {
+            rows.append(item.tableRow)
+        }
+        return TableOutput(rows: rows).format()
+    }
+
+    /// Renders list output in the requested format.
+    ///
+    /// The JSON and display models may be the same type (e.g., `PrintableContainer`)
+    /// or different types (e.g., `Volume` for JSON and `PrintableVolume` for table).
+    public static func render<J: Encodable, D: ListDisplayable>(
+        json: J, display: [D], format: ListFormat, quiet: Bool
+    ) throws {
+        switch format {
+        case .json: try emit(renderJSON(json))
+        case .table: emit(renderList(display, quiet: quiet))
+        }
+    }
+
+    /// Writes rendered output to stdout. No-ops on empty strings to avoid blank lines
+    /// (e.g., `container list -q` with zero results should produce no output, not a newline).
+    public static func emit(_ output: String) {
+        if !output.isEmpty {
+            print(output)
+        }
     }
 }

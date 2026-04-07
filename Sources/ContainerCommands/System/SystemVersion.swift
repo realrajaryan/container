@@ -62,7 +62,7 @@ extension Application {
             case .table:
                 printVersionTable(versions: versions)
             case .json:
-                try emit(renderJSON(versions))
+                try Output.emit(Output.renderJSON(versions))
             }
         }
 

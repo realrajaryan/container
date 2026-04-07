@@ -47,7 +47,7 @@ extension Application {
                 let container = try await client.get(id: "buildkit")
 
                 if format == .json {
-                    try emit(renderJSON([PrintableContainer(container)]))
+                    try Output.emit(Output.renderJSON([PrintableContainer(container)]))
                     return
                 }
 
@@ -55,7 +55,7 @@ extension Application {
                     return
                 }
 
-                emit(renderList([PrintableBuilder(container)], quiet: quiet))
+                Output.emit(Output.renderList([PrintableBuilder(container)], quiet: quiet))
             } catch {
                 if let czError = error as? ContainerizationError, czError.code == .notFound {
                     if !quiet {

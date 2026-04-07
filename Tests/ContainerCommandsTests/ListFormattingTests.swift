@@ -92,7 +92,7 @@ struct RenderTableTests {
     @Test
     func rendersHeaderAndRows() {
         let items = [TestItem(id: "abc", name: "first"), TestItem(id: "def", name: "second")]
-        let output = renderTable(items)
+        let output = Output.renderTable(items)
         #expect(output.contains("ID"))
         #expect(output.contains("NAME"))
         #expect(output.contains("abc"))
@@ -101,7 +101,7 @@ struct RenderTableTests {
 
     @Test
     func emptyListRendersHeaderOnly() {
-        let output = renderTable([TestItem]())
+        let output = Output.renderTable([TestItem]())
         #expect(output.contains("ID"))
         #expect(output.contains("NAME"))
         #expect(!output.contains("\n"))
@@ -110,7 +110,7 @@ struct RenderTableTests {
     @Test
     func columnCountMatchesHeader() {
         let items = [TestItem(id: "1", name: "test")]
-        let lines = renderTable(items).split(separator: "\n")
+        let lines = Output.renderTable(items).split(separator: "\n")
         let headerColumnCount = lines[0].split(separator: " ", omittingEmptySubsequences: true).count
         let rowColumnCount = lines[1].split(separator: " ", omittingEmptySubsequences: true).count
         #expect(headerColumnCount == rowColumnCount)
@@ -123,7 +123,7 @@ struct RenderListTests {
     @Test
     func tableMode() {
         let items = [TestItem(id: "abc", name: "first")]
-        let output = renderList(items, quiet: false)
+        let output = Output.renderList(items, quiet: false)
         #expect(output.contains("ID"))
         #expect(output.contains("abc"))
         #expect(output.contains("first"))
@@ -132,13 +132,13 @@ struct RenderListTests {
     @Test
     func quietMode() {
         let items = [TestItem(id: "abc", name: "first"), TestItem(id: "def", name: "second")]
-        let output = renderList(items, quiet: true)
+        let output = Output.renderList(items, quiet: true)
         #expect(output == "abc\ndef")
     }
 
     @Test
     func quietModeEmptyList() {
-        let output = renderList([TestItem](), quiet: true)
+        let output = Output.renderList([TestItem](), quiet: true)
         #expect(output == "")
     }
 }
@@ -149,7 +149,7 @@ struct RenderJSONTests {
     @Test
     func compactProducesValidJSON() throws {
         let items = [TestItem(id: "a", name: "b")]
-        let json = try renderJSON(items)
+        let json = try Output.renderJSON(items)
         let decoded = try JSONDecoder().decode([TestItem].self, from: json.data(using: .utf8)!)
         #expect(decoded.count == 1)
         #expect(decoded[0].id == "a")
@@ -159,20 +159,20 @@ struct RenderJSONTests {
     @Test
     func compactIsSingleLine() throws {
         let items = [TestItem(id: "a", name: "b"), TestItem(id: "c", name: "d")]
-        let json = try renderJSON(items)
+        let json = try Output.renderJSON(items)
         #expect(!json.contains("\n"))
     }
 
     @Test
     func prettySortedIsMultiLine() throws {
         let items = [TestItem(id: "a", name: "b")]
-        let json = try renderJSON(items, options: .prettySorted)
+        let json = try Output.renderJSON(items, options: .prettySorted)
         #expect(json.contains("\n"))
     }
 
     @Test
     func prettySortedHasSortedKeys() throws {
-        let json = try renderJSON(["z": 1, "a": 2], options: .prettySorted)
+        let json = try Output.renderJSON(["z": 1, "a": 2], options: .prettySorted)
         let aIndex = json.range(of: "\"a\"")!.lowerBound
         let zIndex = json.range(of: "\"z\"")!.lowerBound
         #expect(aIndex < zIndex)
@@ -186,7 +186,7 @@ struct RenderJSONTests {
             outputFormatting: [.prettyPrinted, .sortedKeys],
             dateEncodingStrategy: .iso8601
         )
-        let json = try renderJSON(item, options: options)
+        let json = try Output.renderJSON(item, options: options)
         #expect(json.contains("1970-01-01"))
     }
 
@@ -195,8 +195,8 @@ struct RenderJSONTests {
         // Verify renderJSON(array) is structurally identical to the old
         // jsonArray() approach (encode each element, join with commas).
         let items = [TestItem(id: "x", name: "y"), TestItem(id: "a", name: "b")]
-        let wholeArray = try renderJSON(items)
-        let perElement = try items.map { try renderJSON($0) }
+        let wholeArray = try Output.renderJSON(items)
+        let perElement = try items.map { try Output.renderJSON($0) }
         let joined = "[\(perElement.joined(separator: ","))]"
 
         let decoded1 = try JSONDecoder().decode([TestItem].self, from: wholeArray.data(using: .utf8)!)

@@ -42,13 +42,7 @@ extension Application {
         public func run() async throws {
             let networks = try await ClientNetwork.list()
             let items = networks.map { PrintableNetwork($0) }
-
-            if format == .json {
-                try emit(renderJSON(items))
-                return
-            }
-
-            emit(renderList(items, quiet: quiet))
+            try Output.render(json: items, display: items, format: format, quiet: quiet)
         }
     }
 }

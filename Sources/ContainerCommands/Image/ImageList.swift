@@ -65,12 +65,12 @@ extension Application {
 
             if verbose {
                 let items = try await Self.buildVerboseItems(images: images)
-                emit(renderTable(items))
+                Output.emit(Output.renderTable(items))
                 return
             }
 
             let items = try await Self.buildTableItems(images: images)
-            emit(renderTable(items))
+            Output.emit(Output.renderTable(items))
         }
 
         private static func validate(format: ListFormat, quiet: Bool, verbose: Bool) throws {
@@ -93,7 +93,7 @@ extension Application {
                     PrintableImage(reference: image.reference, fullSize: formattedSize, descriptor: image.descriptor)
                 )
             }
-            try emit(renderJSON(printableImages))
+            try Output.emit(Output.renderJSON(printableImages))
         }
 
         private static func buildTableItems(images: [ClientImage]) async throws -> [ImageRow] {

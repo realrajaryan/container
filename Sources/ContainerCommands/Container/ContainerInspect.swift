@@ -41,7 +41,7 @@ extension Application {
             }.map {
                 PrintableContainer($0)
             }
-            try emit(renderJSON(containers))
+            try Output.emit(Output.renderJSON(containers))
         }
     }
 }

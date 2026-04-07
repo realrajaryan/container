@@ -64,7 +64,7 @@ extension Application {
                         apiServerBuild: "",
                         apiServerAppName: ""
                     )
-                    try emit(renderJSON(status))
+                    try Output.emit(Output.renderJSON(status))
                 } else {
                     print("apiserver is not running and not registered with launchd")
                 }
@@ -86,7 +86,7 @@ extension Application {
                         apiServerBuild: systemHealth.apiServerBuild,
                         apiServerAppName: systemHealth.apiServerAppName
                     )
-                    try emit(renderJSON(status))
+                    try Output.emit(Output.renderJSON(status))
                 } else {
                     let rows: [[String]] = [
                         ["FIELD", "VALUE"],
@@ -114,7 +114,7 @@ extension Application {
                         apiServerBuild: "",
                         apiServerAppName: ""
                     )
-                    try emit(renderJSON(status))
+                    try Output.emit(Output.renderJSON(status))
                 } else {
                     print("apiserver is not running")
                 }

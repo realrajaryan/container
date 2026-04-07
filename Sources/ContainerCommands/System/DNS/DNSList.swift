@@ -41,12 +41,11 @@ extension Application {
             let resolver = HostDNSResolver()
             let domains = resolver.listDomains()
 
-            if format == .json {
-                try emit(renderJSON(domains))
-                return
-            }
-
-            emit(renderList(domains.map { PrintableDomain($0) }, quiet: quiet))
+            try Output.render(
+                json: domains,
+                display: domains.map { PrintableDomain($0) },
+                format: format, quiet: quiet
+            )
         }
     }
 }

@@ -39,7 +39,7 @@ extension Application {
             }.map {
                 PrintableNetwork($0)
             }
-            try emit(renderJSON(items))
+            try Output.emit(Output.renderJSON(items))
         }
     }
 }

@@ -41,12 +41,11 @@ extension Application {
         public func run() async throws {
             let vals = DefaultsStore.allValues()
 
-            if format == .json {
-                try emit(renderJSON(vals))
-                return
-            }
-
-            emit(renderList(vals.map { PrintableProperty($0) }, quiet: quiet))
+            try Output.render(
+                json: vals,
+                display: vals.map { PrintableProperty($0) },
+                format: format, quiet: quiet
+            )
         }
     }
 }

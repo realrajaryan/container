@@ -43,14 +43,14 @@ extension Application.VolumeCommand {
             let volumes = try await ClientVolume.list()
 
             if format == .json {
-                try emit(renderJSON(volumes))
+                try Output.emit(Output.renderJSON(volumes))
                 return
             }
 
             // Sort by creation time (newest first) for table display only,
             // matching the original behavior where JSON and quiet emit unsorted.
             let items = quiet ? volumes : volumes.sorted { $0.createdAt > $1.createdAt }
-            emit(renderList(items.map { PrintableVolume($0) }, quiet: quiet))
+            Output.emit(Output.renderList(items.map { PrintableVolume($0) }, quiet: quiet))
         }
     }
 }

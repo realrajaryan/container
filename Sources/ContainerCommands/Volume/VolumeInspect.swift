@@ -46,7 +46,7 @@ extension Application.VolumeCommand {
                 outputFormatting: [.prettyPrinted, .sortedKeys],
                 dateEncodingStrategy: .iso8601
             )
-            try emit(renderJSON(volumes, options: options))
+            try Output.emit(Output.renderJSON(volumes, options: options))
         }
     }
 }

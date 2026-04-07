@@ -104,7 +104,7 @@ extension Application {
 
             if format == .json {
                 let jsonStats = statsData.map { $0.stats2 }
-                try emit(renderJSON(jsonStats))
+                try Output.emit(Output.renderJSON(jsonStats))
                 return
             }
 

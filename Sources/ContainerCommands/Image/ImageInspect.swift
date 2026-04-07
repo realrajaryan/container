@@ -60,7 +60,7 @@ extension Application {
             }
 
             if !printable.isEmpty {
-                try emit(renderJSON(printable))
+                try Output.emit(Output.renderJSON(printable))
             }
 
             if !allErrors.isEmpty {
