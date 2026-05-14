@@ -95,10 +95,11 @@ extension ImagesHelper {
             // TODO: remove as part of ImageStore URL removal PR
             let rootURL = URL(fileURLWithPath: root.string)
             let contentStore = RemoteContentStoreClient()
+            let contentBlobsPath = root.appendingPathComponent("content/blobs/sha256")
             let imageStore = try ImageStore(path: rootURL, contentStore: contentStore)
             let unpackStrategy = SnapshotStore.defaultUnpackStrategy(initImage: containerSystemConfig.vminit.image)
             let snapshotStore = try SnapshotStore(path: rootURL, unpackStrategy: unpackStrategy, log: log)
-            let service = try ImagesService(contentStore: contentStore, imageStore: imageStore, snapshotStore: snapshotStore, log: log)
+            let service = try ImagesService(contentStore: contentStore, contentBlobsPath: contentBlobsPath, imageStore: imageStore, snapshotStore: snapshotStore, log: log)
             let harness = ImagesServiceHarness(service: service, log: log)
 
             routes[ImagesServiceXPCRoute.imagePull.rawValue] = XPCServer.route(harness.pull)
