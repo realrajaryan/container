@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 import ContainerImagesServiceClient
+import ContainerResource
 import Containerization
 import ContainerizationOCI
 import Foundation
@@ -155,5 +156,10 @@ public actor ContentStoreService {
         }
 
         return try await self.contentStore.cancelIngestSession(id)
+    }
+
+    /// Total bytes allocated on disk for the content store.
+    public func totalAllocatedSize() -> UInt64 {
+        FileManager.default.allocatedSize(of: self.root)
     }
 }

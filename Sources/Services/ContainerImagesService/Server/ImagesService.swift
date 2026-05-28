@@ -29,13 +29,19 @@ import TerminalProgress
 public actor ImagesService {
     private let log: Logger
     private let contentStore: ContentStore
-    private let contentBlobsPath: URL
+    private let contentStoreTotalSize: @Sendable () async throws -> UInt64
     private let imageStore: ImageStore
     private let snapshotStore: SnapshotStore
 
-    public init(contentStore: ContentStore, contentBlobsPath: URL, imageStore: ImageStore, snapshotStore: SnapshotStore, log: Logger) throws {
+    public init(
+        contentStore: ContentStore,
+        contentStoreTotalSize: @Sendable @escaping () async throws -> UInt64,
+        imageStore: ImageStore,
+        snapshotStore: SnapshotStore,
+        log: Logger
+    ) throws {
         self.contentStore = contentStore
-        self.contentBlobsPath = contentBlobsPath
+        self.contentStoreTotalSize = contentStoreTotalSize
         self.imageStore = imageStore
         self.snapshotStore = snapshotStore
         self.log = log
@@ -302,8 +308,7 @@ public actor ImagesService {
             let imageDigest = image.digest.trimmingDigestPrefix
             guard processedDigests.insert(imageDigest).inserted else { continue }
 
-            var seen = Set<String>()
-            for digest in try await image.referencedDigests() where seen.insert(digest).inserted {
+            for digest in try await image.referencedDigests() where activeContentSizes[digest] == nil {
                 guard let content: Content = try await self.contentStore.get(digest: digest) else { continue }
                 activeContentSizes[digest] = try self.contentDiskSize(content)
             }
@@ -313,7 +318,8 @@ public actor ImagesService {
         }
 
         let snapshotDiskSize = await self.snapshotStore.totalAllocatedSize()
-        let totalOnDisk = FileManager.default.allocatedSize(of: self.contentBlobsPath) + snapshotDiskSize
+        let contentDiskSize = try await self.contentStoreTotalSize()
+        let totalOnDisk = contentDiskSize + snapshotDiskSize
         let activeSize = activeContentSizes.values.reduce(0, +) + activeSnapshotSizes.values.reduce(0, +)
         let reclaimable = totalOnDisk > activeSize ? totalOnDisk - activeSize : 0
 

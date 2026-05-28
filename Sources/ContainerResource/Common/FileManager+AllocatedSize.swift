@@ -18,6 +18,10 @@ import Foundation
 
 extension FileManager {
     /// Total bytes allocated on disk for all files in a directory (recursive).
+    ///
+    /// Caveats: hidden files are skipped, symlinks to directories are not followed, but
+    /// symlinks-to-files and hard links each contribute their target's full allocation
+    /// so shared inodes are counted multiple times.
     public func allocatedSize(of directory: URL) -> UInt64 {
         guard
             let enumerator = self.enumerator(
