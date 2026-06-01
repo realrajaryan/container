@@ -100,7 +100,6 @@ extension ImagesHelper {
             let snapshotStore = try SnapshotStore(path: rootURL, unpackStrategy: unpackStrategy, log: log)
             let service = try ImagesService(
                 contentStore: contentStore,
-                contentStoreTotalSize: { try await contentStore.totalAllocatedSize() },
                 imageStore: imageStore,
                 snapshotStore: snapshotStore,
                 log: log

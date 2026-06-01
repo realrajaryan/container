@@ -29,19 +29,16 @@ import TerminalProgress
 public actor ImagesService {
     private let log: Logger
     private let contentStore: ContentStore
-    private let contentStoreTotalSize: @Sendable () async throws -> UInt64
     private let imageStore: ImageStore
     private let snapshotStore: SnapshotStore
 
     public init(
         contentStore: ContentStore,
-        contentStoreTotalSize: @Sendable @escaping () async throws -> UInt64,
         imageStore: ImageStore,
         snapshotStore: SnapshotStore,
         log: Logger
     ) throws {
         self.contentStore = contentStore
-        self.contentStoreTotalSize = contentStoreTotalSize
         self.imageStore = imageStore
         self.snapshotStore = snapshotStore
         self.log = log
@@ -318,8 +315,8 @@ public actor ImagesService {
         }
 
         let snapshotDiskSize = await self.snapshotStore.totalAllocatedSize()
-        let contentDiskSize = try await self.contentStoreTotalSize()
-        let totalOnDisk = contentDiskSize + snapshotDiskSize
+        let contentDiskTotal = try await self.contentStore.totalAllocatedSize()
+        let totalOnDisk = contentDiskTotal + snapshotDiskSize
         let activeSize = activeContentSizes.values.reduce(0, +) + activeSnapshotSizes.values.reduce(0, +)
         let reclaimable = totalOnDisk > activeSize ? totalOnDisk - activeSize : 0
 
