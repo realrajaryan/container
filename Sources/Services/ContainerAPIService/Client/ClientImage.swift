@@ -293,16 +293,10 @@ extension ClientImage {
             throw ContainerizationError(.invalidArgument, message: "maximum number of concurrent uploads must be greater than 0, got \(maxConcurrentUploads)")
         }
 
-        // Normalize the reference, then extract the repository name without the tag.
         let normalized = try Self.normalizeReference(reference, containerSystemConfig: containerSystemConfig)
         let parsedRef = try Reference.parse(normalized)
 
-        let repositoryName: String
-        if let resolved = parsedRef.resolvedDomain {
-            repositoryName = "\(resolved)/\(parsedRef.path)"
-        } else {
-            repositoryName = parsedRef.name
-        }
+        let repositoryName = Utility.repositoryName(for: parsedRef)
 
         guard let host = parsedRef.domain else {
             throw ContainerizationError(.invalidArgument, message: "could not extract host from reference \(normalized)")

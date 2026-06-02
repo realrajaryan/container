@@ -168,63 +168,23 @@ public actor ImagesService {
         let allImages = try await imageStore.list()
         let matchingImages = allImages.filter { image in
             guard let ref = try? Reference.parse(image.reference) else { return false }
-            let resolvedName: String
-            if let resolved = ref.resolvedDomain {
-                resolvedName = "\(resolved)/\(ref.path)"
-            } else {
-                resolvedName = ref.name
-            }
-            return resolvedName == repositoryName
+            return Utility.repositoryName(for: ref) == repositoryName
         }
 
         guard !matchingImages.isEmpty else {
             throw ContainerizationError(.notFound, message: "no tags found for repository \(repositoryName)")
         }
 
-        let maxConcurrent = maxConcurrentUploads > 0 ? maxConcurrentUploads : 3
+        guard maxConcurrentUploads > 0 else {
+            throw ContainerizationError(.invalidArgument, message: "maximum number of concurrent uploads must be greater than 0, got \(maxConcurrentUploads)")
+        }
 
         try await Self.withAuthentication(ref: repositoryName) { auth in
-            let progress = ContainerizationProgressAdapter.handler(from: progressUpdate)
-            var iterator = matchingImages.makeIterator()
-            var failures: [(reference: String, message: String)] = []
-
-            await withTaskGroup(of: (String, String?).self) { group in
-                for _ in 0..<maxConcurrent {
-                    guard let image = iterator.next() else { break }
-                    let ref = image.reference
-                    group.addTask {
-                        do {
-                            try await self.imageStore.push(
-                                reference: ref, platform: platform, insecure: insecure, auth: auth, progress: progress)
-                            return (ref, nil)
-                        } catch {
-                            return (ref, String(describing: error))
-                        }
-                    }
-                }
-                for await (ref, error) in group {
-                    if let error {
-                        failures.append((ref, error))
-                    }
-                    if let image = iterator.next() {
-                        let nextRef = image.reference
-                        group.addTask {
-                            do {
-                                try await self.imageStore.push(
-                                    reference: nextRef, platform: platform, insecure: insecure, auth: auth, progress: progress)
-                                return (nextRef, nil)
-                            } catch {
-                                return (nextRef, String(describing: error))
-                            }
-                        }
-                    }
-                }
-            }
-
-            if !failures.isEmpty {
-                let details = failures.map { "\($0.reference): \($0.message)" }.joined(separator: "\n")
-                throw ContainerizationError(.internalError, message: "failed to push one or more tags:\n\(details)")
-            }
+            try await self.imageStore.push(
+                references: matchingImages.map { $0.reference },
+                platform: platform, insecure: insecure, auth: auth,
+                maxConcurrentUploads: maxConcurrentUploads,
+                progress: ContainerizationProgressAdapter.handler(from: progressUpdate))
         }
 
         return matchingImages.map { $0.description.fromCZ }

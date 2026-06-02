@@ -71,24 +71,7 @@ public struct ImagesServiceHarness: Sendable {
         let allTags = message.bool(key: .allTags)
 
         let progressUpdateService = ProgressUpdateService(message: message)
-        if allTags {
-            let repository = message.string(key: .imageRepository)
-            guard let repository else {
-                throw ContainerizationError(
-                    .invalidArgument,
-                    message: "missing image repository"
-                )
-            }
-            let maxConcurrentUploads = message.int64(key: .maxConcurrentUploads)
-            let pushed = try await service.pushAllTags(
-                repositoryName: repository, platform: platform, insecure: insecure,
-                maxConcurrentUploads: Int(maxConcurrentUploads), progressUpdate: progressUpdateService?.handler)
-
-            let reply = message.reply()
-            let imageData = try JSONEncoder().encode(pushed)
-            reply.set(key: .imageDescriptions, value: imageData)
-            return reply
-        } else {
+        guard allTags else {
             let ref = message.string(key: .imageReference)
             guard let ref else {
                 throw ContainerizationError(
@@ -97,9 +80,24 @@ public struct ImagesServiceHarness: Sendable {
                 )
             }
             try await service.push(reference: ref, platform: platform, insecure: insecure, progressUpdate: progressUpdateService?.handler)
+            return message.reply()
         }
 
+        let repository = message.string(key: .imageRepository)
+        guard let repository else {
+            throw ContainerizationError(
+                .invalidArgument,
+                message: "missing image repository"
+            )
+        }
+        let maxConcurrentUploads = message.int64(key: .maxConcurrentUploads)
+        let pushed = try await service.pushAllTags(
+            repositoryName: repository, platform: platform, insecure: insecure,
+            maxConcurrentUploads: Int(maxConcurrentUploads), progressUpdate: progressUpdateService?.handler)
+
         let reply = message.reply()
+        let imageData = try JSONEncoder().encode(pushed)
+        reply.set(key: .imageDescriptions, value: imageData)
         return reply
     }
 
